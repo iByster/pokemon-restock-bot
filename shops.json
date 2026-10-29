@@ -244,6 +244,29 @@
       "may_be_empty": "all"
     },
     {
+      "name": "Transylvania Games",
+      "type": "html",
+      "urls": [
+        "https://www.transylvaniagames.com/card-games/pokemon",
+        "https://www.transylvaniagames.com/card-games/pokemon?p=2",
+        "https://www.transylvaniagames.com/card-games/pokemon?p=3",
+        "https://www.transylvaniagames.com/catalogsearch/result/?q=riftbound",
+        "https://www.transylvaniagames.com/catalogsearch/result/?q=riftbound&p=2"
+      ],
+      "filter_urls": [
+        "https://www.transylvaniagames.com/catalogsearch/result/?q=riftbound",
+        "https://www.transylvaniagames.com/catalogsearch/result/?q=riftbound&p=2"
+      ],
+      "may_be_empty": [
+        "https://www.transylvaniagames.com/card-games/pokemon?p=3",
+        "https://www.transylvaniagames.com/catalogsearch/result/?q=riftbound&p=2"
+      ],
+      "unknown_is_in_stock": true,
+      "reappear_is_restock": true,
+      "delay": 2,
+      "note": "Checkpoint Cluj (Magento). Listing shows only 'Stoc epuizat' for sold-out items, no newest sort."
+    },
+    {
       "name": "Flamey's TCG Vault",
       "type": "html",
       "urls": [

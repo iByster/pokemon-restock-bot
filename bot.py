@@ -359,6 +359,11 @@ def check_shop(shop):
         items = {k: v for k, v in items.items() if not ex.search(v["title"] + " " + k)}
     if shop.get("cards_only"):
         items = {k: v for k, v in items.items() if CARDS.search(v["title"])}
+    if shop.get("unknown_is_in_stock"):
+        # shop only labels sold-out items; anything without the label is buyable
+        for v in items.values():
+            if v["available"] is None:
+                v["available"] = True
     return shop, items, errors, n_sources
 
 
