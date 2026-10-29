@@ -44,6 +44,7 @@ jobs:
         env:
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          PROXY_URL: ${{ secrets.PROXY_URL }}
           REPORT: ${{ github.event_name == 'workflow_dispatch' && inputs.report && '1' || '' }}
         run: python bot.py
 
