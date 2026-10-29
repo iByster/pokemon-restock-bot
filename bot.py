@@ -126,11 +126,13 @@ def read_shopify(session, shop):
             "preorder": bool(PRE.search(p.get("title", "") + " " + tags)),
         }
 
-    sources = [(f"{base}/collections/{c}/products.json", False) for c in shop.get("collections", [])]
+    kw_colls = set(shop.get("filter_collections", []))
+    sources = [(f"{base}/collections/{c}/products.json", c in kw_colls)
+               for c in shop.get("collections", [])]
     if shop.get("scan_all"):
         sources.append((f"{base}/products.json", True))
     for src, need_kw in sources:
-        for page in (1, 2):
+        for page in range(1, int(shop.get("max_pages", 2)) + 1):
             try:
                 data = get(session, f"{src}?limit=250&page={page}", as_json=True)
             except Exception as e:  # noqa: BLE001
@@ -402,6 +404,10 @@ def main():
     for shop, items, errors, n_sources in results:
         name = shop["name"]
         st = state["shops"].setdefault(name, {"items": {}, "fails": 0, "warned": False, "init": False})
+        sig = json.dumps({k: v for k, v in shop.items() if k not in ("note", "_help")}, sort_keys=True)
+        if st.get("sig") != sig:
+            st["init"] = False   # shop settings changed: re-learn silently, no alert flood
+            st["sig"] = sig
         complete = not errors
         usable = bool(items)
 

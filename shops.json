@@ -8,7 +8,8 @@
       "collections": [
         "pokemon"
       ],
-      "scan_all": true
+      "scan_all": true,
+      "max_pages": 6
     },
     {
       "name": "TCG Arena",
@@ -25,10 +26,15 @@
       "type": "shopify",
       "base": "https://redgoblin.ro",
       "collections": [
-        "pokemon"
+        "pokemon",
+        "other-card-games"
       ],
       "scan_all": true,
-      "cards_only": true
+      "cards_only": true,
+      "filter_collections": [
+        "other-card-games"
+      ],
+      "max_pages": 3
     },
     {
       "name": "dexHIT",
@@ -93,6 +99,7 @@
       "type": "html",
       "urls": [
         "https://www.hobby-planet.ro/catalog/pokemon-265",
+        "https://www.hobby-planet.ro/catalog/riftbound-league-of-legends-tcg-309",
         "https://www.hobby-planet.ro/catalog/produse-recente"
       ],
       "filter_urls": [
@@ -132,7 +139,11 @@
       "type": "html",
       "urls": [
         "https://www.fyft.ro/pokemon/",
-        "https://www.fyft.ro/pokemon-booster-packs-si-boxes/"
+        "https://www.fyft.ro/pokemon-booster-packs-si-boxes/",
+        "https://www.fyft.ro/cautare/?string=riftbound"
+      ],
+      "filter_urls": [
+        "https://www.fyft.ro/cautare/?string=riftbound"
       ]
     },
     {
@@ -150,7 +161,8 @@
       "name": "Noriel",
       "type": "html",
       "urls": [
-        "https://noriel.ro/catalogsearch/result/?q=pokemon%20tcg&product_list_order=created_at"
+        "https://noriel.ro/catalogsearch/result/?q=pokemon%20tcg&product_list_order=created_at",
+        "https://noriel.ro/catalogsearch/result/?q=riftbound&product_list_order=created_at"
       ],
       "filter_urls": "all",
       "cards_only": true
@@ -179,7 +191,8 @@
       "name": "Smyk",
       "type": "html",
       "urls": [
-        "https://www.smyk.ro/search?q=pokemon"
+        "https://www.smyk.ro/search?q=pokemon",
+        "https://www.smyk.ro/search?q=riftbound"
       ],
       "filter_urls": "all",
       "cards_only": true,
