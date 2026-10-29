@@ -18,6 +18,8 @@ import re
 import sys
 import time
 from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime
+from zoneinfo import ZoneInfo
 from urllib.parse import urljoin, urlsplit, urlunsplit
 
 import requests
@@ -41,6 +43,9 @@ PRE = re.compile(r"precomand|pre-?order|pre-comand", re.I)
 INSTOCK = re.compile(r"[iî]n stoc|adaug[aă] [iî]n co[sș]|add to cart|skladem|stoc limitat|"
                      r"ultimele buc", re.I)
 
+PAGE_STATS = {}            # (shop name, page) -> items found, or -1 on error
+PAGES_BAD_BEFORE_WARNING = 12   # ~1 hour of failed runs for one page
+DAILY_HOUR = 9             # daily health report, Romanian time
 MISSES_FOR_GONE = 3        # runs an item must be missing before "reappear" counts
 FAILS_BEFORE_WARNING = 12  # ~1 hour at 5-minute runs
 MAX_ALERTS_PER_SHOP = 12
@@ -133,17 +138,21 @@ def read_shopify(session, shop):
     if shop.get("scan_all"):
         sources.append((f"{base}/products.json", True))
     for src, need_kw in sources:
+        before = len(items)
+        failed = False
         for page in range(1, int(shop.get("max_pages", 2)) + 1):
             try:
                 data = get(session, f"{src}?limit=250&page={page}", as_json=True)
             except Exception as e:  # noqa: BLE001
                 errors.append(f"{src}: {e}")
+                failed = page == 1
                 break
             prods = data.get("products", [])
             for p in prods:
                 add(p, need_kw)
             if len(prods) < 250:
                 break
+        PAGE_STATS[(shop["name"], src)] = -1 if failed else len(items) - before
     return items, errors, len(sources)
 
 
@@ -158,7 +167,11 @@ def read_woo(session, shop):
             data = get(session, url, as_json=True)
         except Exception as e:  # noqa: BLE001
             errors.append(f"{url}: {e}")
+            if page == 1:
+                PAGE_STATS[(shop["name"], base + " (product feed)")] = -1
             break
+        if page == 1:
+            PAGE_STATS[(shop["name"], base + " (product feed)")] = len(data)
         for p in data:
             cats = " ".join(c.get("name", "") for c in p.get("categories", []))
             name = clean(p.get("name"))
@@ -294,6 +307,7 @@ def read_html(session, shop, urls=None):
             page = get(session, url)
         except Exception as e:  # noqa: BLE001
             errors.append(f"{url}: {e}")
+            PAGE_STATS[(shop["name"], url)] = -1
             continue
         soup = BeautifulSoup(page, "html.parser")
         found = {}
@@ -307,6 +321,7 @@ def read_html(session, shop, urls=None):
         if not found:
             title = soup.title.get_text(" ", strip=True)[:60] if soup.title else ""
             print(f"    [debug] {url}: 0 products, {len(page)} bytes, title={title!r}")
+        PAGE_STATS[(shop["name"], url)] = len(found)
         items.update(found)
     return items, errors, len(urls)
 
@@ -382,6 +397,60 @@ def item_msg(kind, shop, it):
             f"{html.escape(it['url'])}")
 
 
+# ---------------------------------------------------------------- health
+
+def health_text(state, shops, title):
+    now = time.time()
+    runs = [t for t in state.get("runs", []) if now - t < 24 * 3600]
+    pages = state.get("pages", {})
+    lines = [f"<b>{html.escape(title)}</b>",
+             f"Checks in the last 24h: {len(runs)} (target ~288, one every 5 min)", ""]
+    problems = 0
+    for s in shops:
+        name = s["name"]
+        st = state.get("shops", {}).get(name, {})
+        bad = [k.split(" | ", 1)[1] for k, r in pages.items()
+               if k.startswith(name + " | ") and r.get("bad", 0) >= 3]
+        if not st.get("last_ok"):
+            lines.append(f"⏸ {html.escape(name)}: not checked yet")
+            continue
+        down = st.get("fails", 0) >= 3
+        icon = "❌" if down else ("⚠️" if bad else "✅")
+        problems += down or bool(bad)
+        line = f"{icon} {html.escape(name)}: {st.get('last_n', 0)} products ({st.get('last_av', 0)} in stock)"
+        if down:
+            mins = int((now - st["last_ok"]) / 60)
+            line += f" · not loading for {mins} min"
+        elif bad:
+            line += f" · {len(bad)} page(s) failing"
+        lines.append(line)
+    lines += ["", "All good 👍" if not problems else f"{problems} shop(s) need attention."]
+    return "\n".join(lines)
+
+
+def poll_status_command(state):
+    """True if you sent /status to the bot since the last run."""
+    token = os.environ.get("TELEGRAM_TOKEN")
+    chat = os.environ.get("TELEGRAM_CHAT_ID")
+    if not token or not chat:
+        return False
+    try:
+        r = requests.get(f"https://api.telegram.org/bot{token}/getUpdates",
+                         params={"offset": state.get("tg_offset", 0), "timeout": 0,
+                                 "allowed_updates": json.dumps(["message"])},
+                         timeout=15).json()
+    except (requests.RequestException, ValueError):
+        return False
+    wanted = False
+    for u in r.get("result", []):
+        state["tg_offset"] = u["update_id"] + 1
+        m = u.get("message") or {}
+        text = (m.get("text") or "").strip().lower()
+        if str(m.get("chat", {}).get("id")) == str(chat) and text.lstrip("/").startswith("status"):
+            wanted = True
+    return wanted
+
+
 # ---------------------------------------------------------------- main
 
 def load_state():
@@ -403,11 +472,14 @@ def save_state(state):
 def main():
     with open(SHOPS_FILE, encoding="utf-8") as f:
         shops = [s for s in json.load(f)["shops"] if s.get("enabled", True)]
+    all_shops = list(shops)
     if not os.environ.get("PROXY_URL", "").strip():
         shops = [s for s in shops if not s.get("use_proxy")]  # no proxy saved yet
     state = load_state()
     report = bool(os.environ.get("REPORT"))
     messages, report_lines = [], []
+    usable_shops = set()
+    now = time.time()
 
     with ThreadPoolExecutor(max_workers=6) as pool:
         results = list(pool.map(check_shop, shops))
@@ -415,7 +487,7 @@ def main():
     for shop, items, errors, n_sources in results:
         name = shop["name"]
         st = state["shops"].setdefault(name, {"items": {}, "fails": 0, "warned": False, "init": False})
-        sig = json.dumps({k: v for k, v in shop.items() if k not in ("note", "_help")}, sort_keys=True)
+        sig = json.dumps({k: v for k, v in shop.items() if k not in ("note", "_help", "may_be_empty")}, sort_keys=True)
         if st.get("sig") != sig:
             st["init"] = False   # shop settings changed: re-learn silently, no alert flood
             st["sig"] = sig
@@ -444,6 +516,10 @@ def main():
         if st["warned"]:
             messages.append(f"✅ <b>{html.escape(name)}</b> is reachable again.")
         st["fails"], st["warned"] = 0, False
+        usable_shops.add(name)
+        st["last_n"] = len(items)
+        st["last_av"] = sum(1 for i in items.values() if i["available"])
+        st["last_ok"] = now
 
         known = st["items"]
         if not st["init"]:
@@ -476,6 +552,46 @@ def main():
                             f"at once (big drop, or the shop changed its site):\n{sample}")
         else:
             messages.extend(item_msg(kind, name, it) for kind, it in alerts)
+
+    # ------------------------------------------------ health check per page
+    runs = [t for t in state.get("runs", []) if now - t < 26 * 3600]
+    runs.append(now)
+    state["runs"] = runs
+    pages = state.setdefault("pages", {})
+    for (sname, page), n in PAGE_STATS.items():
+        shop = next((x for x in shops if x["name"] == sname), {})
+        allowed_empty = shop.get("may_be_empty") or []
+        empty_ok = allowed_empty == "all" or page in allowed_empty
+        key = f"{sname} | {page}"
+        rec = pages.setdefault(key, {"bad": 0, "warned": False})
+        rec["n"] = n
+        if n < 0 or (n == 0 and not empty_ok):
+            rec["bad"] += 1
+            # whole-shop outages already get their own warning above
+            if (rec["bad"] >= PAGES_BAD_BEFORE_WARNING and not rec["warned"]
+                    and sname in usable_shops):
+                what = "keeps failing to load" if n < 0 else "keeps showing 0 products"
+                messages.append(f"⚠️ <b>{html.escape(sname)}</b>: one page {what} (~1 hour).\n"
+                                f"{html.escape(page)}")
+                rec["warned"] = True
+        else:
+            if rec["warned"]:
+                messages.append(f"✅ <b>{html.escape(sname)}</b>: page works again.\n{html.escape(page)}")
+            rec.update(bad=0, warned=False, last_ok=now)
+    current = {f"{a} | {b}" for a, b in PAGE_STATS}
+    ran = {x["name"] for x in shops}
+    for key in list(pages):
+        if key.split(" | ", 1)[0] in ran and key not in current:
+            del pages[key]
+
+    # ------------------------------------------------ daily report + /status
+    local = datetime.now(ZoneInfo("Europe/Bucharest"))
+    today = local.strftime("%Y-%m-%d")
+    if local.hour >= DAILY_HOUR and state.get("daily") != today:
+        messages.append(health_text(state, all_shops, f"📊 Daily health check · {local:%d %b}"))
+        state["daily"] = today
+    if poll_status_command(state):
+        messages.append(health_text(state, all_shops, f"📋 Status · {local:%d %b %H:%M}"))
 
     save_state(state)
 

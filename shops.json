@@ -109,7 +109,10 @@
       "filter_urls": [
         "https://www.hobby-planet.ro/catalog/produse-recente"
       ],
-      "delay": 4
+      "delay": 4,
+      "may_be_empty": [
+        "https://www.hobby-planet.ro/catalog/produse-recente"
+      ]
     },
     {
       "name": "TCG Shop",
@@ -127,7 +130,8 @@
         "https://secretcards.ro/categories/booster-boxes",
         "https://secretcards.ro/categories/collection-boxes"
       ],
-      "exclude": "lorcana|disney|one piece|yu-?gi-?oh|magic the gathering|\\bmtg\\b"
+      "exclude": "lorcana|disney|one piece|yu-?gi-?oh|magic the gathering|\\bmtg\\b",
+      "may_be_empty": "all"
     },
     {
       "name": "PokeMANIA",
@@ -148,6 +152,9 @@
         "https://www.fyft.ro/cautare/?string=riftbound"
       ],
       "filter_urls": [
+        "https://www.fyft.ro/cautare/?string=riftbound"
+      ],
+      "may_be_empty": [
         "https://www.fyft.ro/cautare/?string=riftbound"
       ]
     },
@@ -171,7 +178,10 @@
         "https://noriel.ro/catalogsearch/result/?q=riftbound&product_list_order=created_at"
       ],
       "filter_urls": "all",
-      "cards_only": true
+      "cards_only": true,
+      "may_be_empty": [
+        "https://noriel.ro/catalogsearch/result/?q=riftbound&product_list_order=created_at"
+      ]
     },
     {
       "name": "Bebe Tei",
@@ -203,7 +213,8 @@
       ],
       "filter_urls": "all",
       "cards_only": true,
-      "note": "untested - check the first report"
+      "note": "untested - check the first report",
+      "may_be_empty": "all"
     },
     {
       "name": "Flamey's TCG Vault",
