@@ -36,7 +36,9 @@
       "base": "https://dexhit.ro",
       "fallback_urls": [
         "https://dexhit.ro/shop/?orderby=date"
-      ]
+      ],
+      "enabled": false,
+      "note": "blocks GitHub servers (403/418) - can only be checked from your own computer"
     },
     {
       "name": "LootShop",
@@ -83,7 +85,8 @@
         "https://shop.guildhall.ro/pokemon?o=news",
         "https://shop.guildhall.ro/riftbound?o=news"
       ],
-      "note": "blocked GitHub (403) on first run - retrying with browser-like headers"
+      "note": "blocks GitHub servers (403/418) - can only be checked from your own computer",
+      "enabled": false
     },
     {
       "name": "Hobby Planet",
@@ -140,7 +143,8 @@
         "https://regatuljocurilor.ro/ro/cautare?controller=search&search_query=riftbound&orderby=date_add&orderway=desc"
       ],
       "filter_urls": "all",
-      "note": "blocked GitHub (403) on first run - retrying with browser-like headers"
+      "note": "blocks GitHub servers (403/418) - can only be checked from your own computer",
+      "enabled": false
     },
     {
       "name": "Noriel",
@@ -168,7 +172,8 @@
       ],
       "filter_urls": "all",
       "cards_only": true,
-      "note": "blocked GitHub (403) on first run - retrying with browser-like headers"
+      "note": "blocks GitHub servers (403/418) - can only be checked from your own computer",
+      "enabled": false
     },
     {
       "name": "Smyk",

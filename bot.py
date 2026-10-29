@@ -33,7 +33,7 @@ TIMEOUT = 25
 KEYWORD = re.compile(r"pok[eé]mon|\bpkm\b|riftbound|league of legends", re.I)
 CARDS = re.compile(r"tcg|booster|elite trainer|\betb\b|c[aă]r[tț]i|carton[aș]|blister|\btin\b|"
                    r"collection|colec[tț]ie|deck|bundle|display|premium|binder|sleeve", re.I)
-PRICE = re.compile(r"\d[\d.,]*\s*(?:lei|ron)(?![a-z])|(?<![a-z])(?:lei|ron)\s*\d", re.I)
+PRICE = re.compile(r"\d[\d.,]*\s*(?:lei|ron|eur|€)(?![a-z])|(?<![a-z])(?:lei|ron|eur|€)\s*\d", re.I)
 OOS = re.compile(r"stoc epuizat|epuizat|indisponibil|out of stock|sold out|"
                  r"nu (?:este|e) [iî]n stoc|vyprod[aá]no|stoc 0\b", re.I)
 PRE = re.compile(r"precomand|pre-?order|pre-comand", re.I)
