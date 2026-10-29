@@ -104,7 +104,8 @@
       ],
       "filter_urls": [
         "https://www.hobby-planet.ro/catalog/produse-recente"
-      ]
+      ],
+      "delay": 4
     },
     {
       "name": "TCG Shop",
