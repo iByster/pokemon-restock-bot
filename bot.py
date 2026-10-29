@@ -317,7 +317,11 @@ READERS = {"shopify": read_shopify, "woo": read_woo, "html": read_html}
 def check_shop(shop):
     session = make_session()
     if shop.get("use_proxy"):
-        proxy = os.environ.get("PROXY_URL", "").strip()
+        proxy = os.environ.get("PROXY_URL", "").strip().strip('"').strip("'")
+        if proxy.lower().startswith("curl -x"):
+            proxy = proxy[7:].strip().split()[0].strip('"')
+        if "://" not in proxy:
+            proxy = "http://" + proxy   # accept the plain login:pass@host:port format too
         session.proxies.update({"http": proxy, "https": proxy})
     try:
         items, errors, n_sources = READERS[shop["type"]](session, shop)
