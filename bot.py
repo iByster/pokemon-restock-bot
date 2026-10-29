@@ -8,6 +8,7 @@ Env vars:
   TELEGRAM_CHAT_ID  - your chat id (see SETUP.md)
   REPORT=1          - send a summary of what every shop returned (for testing)
   DRY_RUN=1         - print messages instead of sending them
+  PROXY_URL         - http://user:pass@host:port, used only by shops with "use_proxy": true
 """
 
 import html
@@ -149,8 +150,9 @@ def read_shopify(session, shop):
 def read_woo(session, shop):
     base = shop["base"].rstrip("/")
     items, errors = {}, []
-    for page in (1, 2):
-        url = (f"{base}/wp-json/wc/store/v1/products?per_page=100&page={page}"
+    per_page = int(shop.get("per_page", 100))
+    for page in range(1, int(shop.get("max_pages", 2)) + 1):
+        url = (f"{base}/wp-json/wc/store/v1/products?per_page={per_page}&page={page}"
                f"&orderby=date&order=desc")
         try:
             data = get(session, url, as_json=True)
@@ -173,7 +175,7 @@ def read_woo(session, shop):
                 "available": bool(p.get("is_in_stock")),
                 "preorder": bool(p.get("is_on_backorder")) or bool(PRE.search(name)),
             }
-        if len(data) < 100:
+        if len(data) < per_page:
             break
     return items, errors, 1
 
@@ -314,6 +316,9 @@ READERS = {"shopify": read_shopify, "woo": read_woo, "html": read_html}
 
 def check_shop(shop):
     session = make_session()
+    if shop.get("use_proxy"):
+        proxy = os.environ.get("PROXY_URL", "").strip()
+        session.proxies.update({"http": proxy, "https": proxy})
     try:
         items, errors, n_sources = READERS[shop["type"]](session, shop)
         if not items and shop.get("fallback_urls"):
@@ -394,6 +399,8 @@ def save_state(state):
 def main():
     with open(SHOPS_FILE, encoding="utf-8") as f:
         shops = [s for s in json.load(f)["shops"] if s.get("enabled", True)]
+    if not os.environ.get("PROXY_URL", "").strip():
+        shops = [s for s in shops if not s.get("use_proxy")]  # no proxy saved yet
     state = load_state()
     report = bool(os.environ.get("REPORT"))
     messages, report_lines = [], []
