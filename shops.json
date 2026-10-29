@@ -52,23 +52,36 @@
     {
       "name": "LootShop",
       "type": "woo",
-      "base": "https://lootshop.ro"
+      "base": "https://lootshop.ro",
+      "max_pages": 3
     },
     {
       "name": "Krit",
       "type": "html",
       "urls": [
         "https://krit.ro/en/categorie/pokemon",
-        "https://krit.ro/en/categorie/riftbound-league-of-legends-tcg"
+        "https://krit.ro/en/categorie/riftbound-league-of-legends-tcg",
+        "https://krit.ro/en/categorie/pokemon?page=2&sort=stocked",
+        "https://krit.ro/en/categorie/riftbound-league-of-legends-tcg?page=2&sort=stocked"
       ],
-      "reappear_is_restock": true
+      "reappear_is_restock": true,
+      "may_be_empty": [
+        "https://krit.ro/en/categorie/pokemon?page=2&sort=stocked",
+        "https://krit.ro/en/categorie/riftbound-league-of-legends-tcg?page=2&sort=stocked"
+      ]
     },
     {
       "name": "Lex Shop",
       "type": "html",
       "urls": [
         "https://www.lexshop.ro/pokemon-tcg?o=news",
-        "https://www.lexshop.ro/riftbound-league-of-legends-tcg?o=news"
+        "https://www.lexshop.ro/riftbound-league-of-legends-tcg?o=news",
+        "https://www.lexshop.ro/pokemon-tcg?o=news&p=2",
+        "https://www.lexshop.ro/riftbound-league-of-legends-tcg?o=news&p=2"
+      ],
+      "may_be_empty": [
+        "https://www.lexshop.ro/pokemon-tcg?o=news&p=2",
+        "https://www.lexshop.ro/riftbound-league-of-legends-tcg?o=news&p=2"
       ]
     },
     {
@@ -76,7 +89,13 @@
       "type": "html",
       "urls": [
         "https://www.ramcards.ro/pokemon-tcg?o=news",
-        "https://www.ramcards.ro/riftbound-tcg?o=news"
+        "https://www.ramcards.ro/riftbound-tcg?o=news",
+        "https://www.ramcards.ro/pokemon-tcg?o=news&p=2",
+        "https://www.ramcards.ro/riftbound-tcg?o=news&p=2"
+      ],
+      "may_be_empty": [
+        "https://www.ramcards.ro/pokemon-tcg?o=news&p=2",
+        "https://www.ramcards.ro/riftbound-tcg?o=news&p=2"
       ]
     },
     {
@@ -84,7 +103,13 @@
       "type": "html",
       "urls": [
         "https://www.cardxtcg.ro/produse?c=pokemon&o=news",
-        "https://www.cardxtcg.ro/league-of-legends-riftbound?o=news"
+        "https://www.cardxtcg.ro/league-of-legends-riftbound?o=news",
+        "https://www.cardxtcg.ro/produse?c=pokemon&o=news&p=2",
+        "https://www.cardxtcg.ro/league-of-legends-riftbound?o=news&p=2"
+      ],
+      "may_be_empty": [
+        "https://www.cardxtcg.ro/produse?c=pokemon&o=news&p=2",
+        "https://www.cardxtcg.ro/league-of-legends-riftbound?o=news&p=2"
       ]
     },
     {
@@ -112,7 +137,13 @@
       "type": "html",
       "urls": [
         "https://www.tcg-shop.ro/category/pokemon",
-        "https://www.tcg-shop.ro/category/riftbound-league-of-legends-tcg"
+        "https://www.tcg-shop.ro/category/riftbound-league-of-legends-tcg",
+        "https://www.tcg-shop.ro/category/pokemon?page=2",
+        "https://www.tcg-shop.ro/category/riftbound-league-of-legends-tcg?page=2"
+      ],
+      "may_be_empty": [
+        "https://www.tcg-shop.ro/category/pokemon?page=2",
+        "https://www.tcg-shop.ro/category/riftbound-league-of-legends-tcg?page=2"
       ]
     },
     {
@@ -124,7 +155,8 @@
         "https://secretcards.ro/categories/collection-boxes"
       ],
       "exclude": "lorcana|disney|one piece|yu-?gi-?oh|magic the gathering|\\bmtg\\b",
-      "may_be_empty": "all"
+      "may_be_empty": "all",
+      "reappear_is_restock": true
     },
     {
       "name": "PokeMANIA",
@@ -142,13 +174,15 @@
       "urls": [
         "https://www.fyft.ro/pokemon/",
         "https://www.fyft.ro/pokemon-booster-packs-si-boxes/",
-        "https://www.fyft.ro/cautare/?string=riftbound"
+        "https://www.fyft.ro/cautare/?string=riftbound",
+        "https://www.fyft.ro/pokemon/pagina-2/"
       ],
       "filter_urls": [
         "https://www.fyft.ro/cautare/?string=riftbound"
       ],
       "may_be_empty": [
-        "https://www.fyft.ro/cautare/?string=riftbound"
+        "https://www.fyft.ro/cautare/?string=riftbound",
+        "https://www.fyft.ro/pokemon/pagina-2/"
       ]
     },
     {
@@ -156,12 +190,16 @@
       "type": "html",
       "urls": [
         "https://regatuljocurilor.ro/ro/cautare?controller=search&search_query=pokemon&orderby=date_add&orderway=desc",
-        "https://regatuljocurilor.ro/ro/cautare?controller=search&search_query=riftbound&orderby=date_add&orderway=desc"
+        "https://regatuljocurilor.ro/ro/cautare?controller=search&search_query=riftbound&orderby=date_add&orderway=desc",
+        "https://regatuljocurilor.ro/ro/cautare?controller=search&search_query=pokemon&orderby=date_add&orderway=desc&page=2"
       ],
       "filter_urls": "all",
       "note": "blocks cloud servers - checked through the DataImpulse proxy (PROXY_URL secret)",
       "enabled": true,
-      "use_proxy": true
+      "use_proxy": true,
+      "may_be_empty": [
+        "https://regatuljocurilor.ro/ro/cautare?controller=search&search_query=pokemon&orderby=date_add&orderway=desc&page=2"
+      ]
     },
     {
       "name": "Noriel",

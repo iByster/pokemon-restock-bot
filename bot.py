@@ -305,6 +305,14 @@ def read_html(session, shop, urls=None):
             time.sleep(shop["delay"])
         try:
             page = get(session, url)
+        except requests.HTTPError as e:
+            optional = url in (shop.get("may_be_empty") or [])
+            if optional and e.response is not None and e.response.status_code == 404:
+                PAGE_STATS[(shop["name"], url)] = 0   # page 2 that doesn't exist yet: fine
+                continue
+            errors.append(f"{url}: {e}")
+            PAGE_STATS[(shop["name"], url)] = -1
+            continue
         except Exception as e:  # noqa: BLE001
             errors.append(f"{url}: {e}")
             PAGE_STATS[(shop["name"], url)] = -1
