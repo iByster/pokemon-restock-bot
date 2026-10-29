@@ -94,8 +94,8 @@
         "https://shop.guildhall.ro/pokemon?o=news",
         "https://shop.guildhall.ro/riftbound?o=news"
       ],
-      "note": "blocks cloud servers - checked through the DataImpulse proxy (PROXY_URL secret)",
-      "enabled": true,
+      "note": "needs a real browser (blocks even the residential proxy) - paused",
+      "enabled": false,
       "use_proxy": true
     },
     {
@@ -103,16 +103,9 @@
       "type": "html",
       "urls": [
         "https://www.hobby-planet.ro/catalog/pokemon-265",
-        "https://www.hobby-planet.ro/catalog/riftbound-league-of-legends-tcg-309",
-        "https://www.hobby-planet.ro/catalog/produse-recente"
+        "https://www.hobby-planet.ro/catalog/riftbound-league-of-legends-tcg-309"
       ],
-      "filter_urls": [
-        "https://www.hobby-planet.ro/catalog/produse-recente"
-      ],
-      "delay": 4,
-      "may_be_empty": [
-        "https://www.hobby-planet.ro/catalog/produse-recente"
-      ]
+      "delay": 4
     },
     {
       "name": "TCG Shop",
@@ -200,8 +193,8 @@
       ],
       "filter_urls": "all",
       "cards_only": true,
-      "note": "blocks cloud servers - checked through the DataImpulse proxy (PROXY_URL secret)",
-      "enabled": true,
+      "note": "needs a real browser (blocks even the residential proxy) - paused",
+      "enabled": false,
       "use_proxy": true
     },
     {
