@@ -80,8 +80,19 @@ def avail_from_schema(value):
 
 def make_session():
     s = requests.Session()
-    s.headers.update({"User-Agent": UA,
-                      "Accept-Language": "ro-RO,ro;q=0.9,en;q=0.8"})
+    s.headers.update({
+        "User-Agent": UA,
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+        "Accept-Language": "ro-RO,ro;q=0.9,en-US;q=0.8,en;q=0.7",
+        "Upgrade-Insecure-Requests": "1",
+        "Sec-Fetch-Dest": "document",
+        "Sec-Fetch-Mode": "navigate",
+        "Sec-Fetch-Site": "none",
+        "Sec-Fetch-User": "?1",
+        "sec-ch-ua": '"Chromium";v="130", "Google Chrome";v="130", "Not?A_Brand";v="99"',
+        "sec-ch-ua-mobile": "?0",
+        "sec-ch-ua-platform": '"Windows"',
+    })
     return s
 
 
@@ -268,10 +279,13 @@ def html_products(soup, page_url, link_regex=None):
     return out
 
 
-def read_html(session, shop):
+def read_html(session, shop, urls=None):
     items, errors = {}, []
     fu = shop.get("filter_urls") or []
-    for url in shop["urls"]:
+    urls = urls or shop["urls"]
+    for i, url in enumerate(urls):
+        if i and shop.get("delay"):
+            time.sleep(shop["delay"])
         try:
             page = get(session, url)
         except Exception as e:  # noqa: BLE001
@@ -286,8 +300,11 @@ def read_html(session, shop):
             found = html_products(soup, url, shop.get("link_regex"))
         if fu == "all" or url in fu:
             found = {k: v for k, v in found.items() if KEYWORD.search(v["title"] + " " + k)}
+        if not found:
+            title = soup.title.get_text(" ", strip=True)[:60] if soup.title else ""
+            print(f"    [debug] {url}: 0 products, {len(page)} bytes, title={title!r}")
         items.update(found)
-    return items, errors, len(shop["urls"])
+    return items, errors, len(urls)
 
 
 READERS = {"shopify": read_shopify, "woo": read_woo, "html": read_html}
@@ -297,8 +314,15 @@ def check_shop(shop):
     session = make_session()
     try:
         items, errors, n_sources = READERS[shop["type"]](session, shop)
+        if not items and shop.get("fallback_urls"):
+            items, errors2, n2 = read_html(session, shop, shop["fallback_urls"])
+            errors = errors2 if items else errors + errors2
+            n_sources += n2
     except Exception as e:  # noqa: BLE001
         return shop, {}, [str(e)], 1
+    if shop.get("exclude"):
+        ex = re.compile(shop["exclude"], re.I)
+        items = {k: v for k, v in items.items() if not ex.search(v["title"] + " " + k)}
     if shop.get("cards_only"):
         items = {k: v for k, v in items.items() if CARDS.search(v["title"])}
     return shop, items, errors, n_sources

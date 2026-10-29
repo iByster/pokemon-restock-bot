@@ -5,27 +5,38 @@
       "name": "Arcana Inn",
       "type": "shopify",
       "base": "https://arcanainn.ro",
-      "collections": ["pokemon"],
+      "collections": [
+        "pokemon"
+      ],
       "scan_all": true
     },
     {
       "name": "TCG Arena",
       "type": "shopify",
       "base": "https://tcgarena.ro",
-      "collections": ["joc-de-carti-pokemon-tcg-romania", "cartonase-riftbound"],
+      "collections": [
+        "joc-de-carti-pokemon-tcg-romania",
+        "cartonase-riftbound"
+      ],
       "scan_all": true
     },
     {
       "name": "Red Goblin",
       "type": "shopify",
       "base": "https://redgoblin.ro",
-      "collections": ["pokemon"],
-      "scan_all": true
+      "collections": [
+        "pokemon"
+      ],
+      "scan_all": true,
+      "cards_only": true
     },
     {
       "name": "dexHIT",
       "type": "woo",
-      "base": "https://dexhit.ro"
+      "base": "https://dexhit.ro",
+      "fallback_urls": [
+        "https://dexhit.ro/shop/?orderby=date"
+      ]
     },
     {
       "name": "LootShop",
@@ -71,7 +82,8 @@
       "urls": [
         "https://shop.guildhall.ro/pokemon?o=news",
         "https://shop.guildhall.ro/riftbound?o=news"
-      ]
+      ],
+      "note": "blocked GitHub (403) on first run - retrying with browser-like headers"
     },
     {
       "name": "Hobby Planet",
@@ -80,7 +92,9 @@
         "https://www.hobby-planet.ro/catalog/pokemon-265",
         "https://www.hobby-planet.ro/catalog/produse-recente"
       ],
-      "filter_urls": ["https://www.hobby-planet.ro/catalog/produse-recente"]
+      "filter_urls": [
+        "https://www.hobby-planet.ro/catalog/produse-recente"
+      ]
     },
     {
       "name": "TCG Shop",
@@ -98,7 +112,7 @@
         "https://secretcards.ro/categories/booster-boxes",
         "https://secretcards.ro/categories/collection-boxes"
       ],
-      "filter_urls": "all"
+      "exclude": "lorcana|disney|one piece|yu-?gi-?oh|magic the gathering|\\bmtg\\b"
     },
     {
       "name": "PokeMANIA",
@@ -106,11 +120,9 @@
       "urls": [
         "https://pokemania.ro/elite-trainer-boxes",
         "https://pokemania.ro/booster-display-boxes",
-        "https://pokemania.ro/booster-display-bundles",
-        "https://pokemania.ro/booster-blisters",
-        "https://pokemania.ro/premium-booster-blisters",
-        "https://pokemania.ro/booster-packs"
-      ]
+        "https://pokemania.ro/booster-blisters"
+      ],
+      "delay": 4
     },
     {
       "name": "Fyft",
@@ -127,7 +139,8 @@
         "https://regatuljocurilor.ro/ro/cautare?controller=search&search_query=pokemon&orderby=date_add&orderway=desc",
         "https://regatuljocurilor.ro/ro/cautare?controller=search&search_query=riftbound&orderby=date_add&orderway=desc"
       ],
-      "filter_urls": "all"
+      "filter_urls": "all",
+      "note": "blocked GitHub (403) on first run - retrying with browser-like headers"
     },
     {
       "name": "Noriel",
@@ -141,22 +154,28 @@
     {
       "name": "Bebe Tei",
       "type": "html",
-      "urls": ["https://comenzi.bebetei.ro/brand/pokemon"],
+      "urls": [
+        "https://comenzi.bebetei.ro/brand/pokemon"
+      ],
       "link_regex": "-p\\d+/?$",
       "cards_only": true
     },
     {
       "name": "Carturesti",
       "type": "html",
-      "urls": ["https://carturesti.ro/product/search/pokemon"],
+      "urls": [
+        "https://carturesti.ro/product/search/pokemon"
+      ],
       "filter_urls": "all",
       "cards_only": true,
-      "note": "untested - check the first report"
+      "note": "blocked GitHub (403) on first run - retrying with browser-like headers"
     },
     {
       "name": "Smyk",
       "type": "html",
-      "urls": ["https://www.smyk.ro/search?q=pokemon"],
+      "urls": [
+        "https://www.smyk.ro/search?q=pokemon"
+      ],
       "filter_urls": "all",
       "cards_only": true,
       "note": "untested - check the first report"
@@ -164,7 +183,9 @@
     {
       "name": "Flamey's TCG Vault",
       "type": "html",
-      "urls": ["https://shop.flamey.ro/shop"],
+      "urls": [
+        "https://shop.flamey.ro/shop"
+      ],
       "enabled": false,
       "note": "shop was in maintenance and loads with JavaScript - paused"
     }
