@@ -1,0 +1,172 @@
+{
+  "_help": "Each shop: name, type (shopify | woo | html), and where to look. 'filter' keeps only items whose title matches. Set \"enabled\": false to pause a shop.",
+  "shops": [
+    {
+      "name": "Arcana Inn",
+      "type": "shopify",
+      "base": "https://arcanainn.ro",
+      "collections": ["pokemon"],
+      "scan_all": true
+    },
+    {
+      "name": "TCG Arena",
+      "type": "shopify",
+      "base": "https://tcgarena.ro",
+      "collections": ["joc-de-carti-pokemon-tcg-romania", "cartonase-riftbound"],
+      "scan_all": true
+    },
+    {
+      "name": "Red Goblin",
+      "type": "shopify",
+      "base": "https://redgoblin.ro",
+      "collections": ["pokemon"],
+      "scan_all": true
+    },
+    {
+      "name": "dexHIT",
+      "type": "woo",
+      "base": "https://dexhit.ro"
+    },
+    {
+      "name": "LootShop",
+      "type": "woo",
+      "base": "https://lootshop.ro"
+    },
+    {
+      "name": "Krit",
+      "type": "html",
+      "urls": [
+        "https://krit.ro/en/categorie/pokemon",
+        "https://krit.ro/en/categorie/riftbound-league-of-legends-tcg"
+      ],
+      "reappear_is_restock": true
+    },
+    {
+      "name": "Lex Shop",
+      "type": "html",
+      "urls": [
+        "https://www.lexshop.ro/pokemon-tcg?o=news",
+        "https://www.lexshop.ro/riftbound-league-of-legends-tcg?o=news"
+      ]
+    },
+    {
+      "name": "Ram Cards",
+      "type": "html",
+      "urls": [
+        "https://www.ramcards.ro/pokemon-tcg?o=news",
+        "https://www.ramcards.ro/riftbound-tcg?o=news"
+      ]
+    },
+    {
+      "name": "CardX TCG",
+      "type": "html",
+      "urls": [
+        "https://www.cardxtcg.ro/produse?c=pokemon&o=news",
+        "https://www.cardxtcg.ro/league-of-legends-riftbound?o=news"
+      ]
+    },
+    {
+      "name": "The Guild Hall",
+      "type": "html",
+      "urls": [
+        "https://shop.guildhall.ro/pokemon?o=news",
+        "https://shop.guildhall.ro/riftbound?o=news"
+      ]
+    },
+    {
+      "name": "Hobby Planet",
+      "type": "html",
+      "urls": [
+        "https://www.hobby-planet.ro/catalog/pokemon-265",
+        "https://www.hobby-planet.ro/catalog/produse-recente"
+      ],
+      "filter_urls": ["https://www.hobby-planet.ro/catalog/produse-recente"]
+    },
+    {
+      "name": "TCG Shop",
+      "type": "html",
+      "urls": [
+        "https://www.tcg-shop.ro/category/pokemon",
+        "https://www.tcg-shop.ro/category/riftbound-league-of-legends-tcg"
+      ]
+    },
+    {
+      "name": "Secret Cards",
+      "type": "html",
+      "urls": [
+        "https://secretcards.ro/categories/sealed-products",
+        "https://secretcards.ro/categories/booster-boxes",
+        "https://secretcards.ro/categories/collection-boxes"
+      ],
+      "filter_urls": "all"
+    },
+    {
+      "name": "PokeMANIA",
+      "type": "html",
+      "urls": [
+        "https://pokemania.ro/elite-trainer-boxes",
+        "https://pokemania.ro/booster-display-boxes",
+        "https://pokemania.ro/booster-display-bundles",
+        "https://pokemania.ro/booster-blisters",
+        "https://pokemania.ro/premium-booster-blisters",
+        "https://pokemania.ro/booster-packs"
+      ]
+    },
+    {
+      "name": "Fyft",
+      "type": "html",
+      "urls": [
+        "https://www.fyft.ro/pokemon/",
+        "https://www.fyft.ro/pokemon-booster-packs-si-boxes/"
+      ]
+    },
+    {
+      "name": "Regatul Jocurilor",
+      "type": "html",
+      "urls": [
+        "https://regatuljocurilor.ro/ro/cautare?controller=search&search_query=pokemon&orderby=date_add&orderway=desc",
+        "https://regatuljocurilor.ro/ro/cautare?controller=search&search_query=riftbound&orderby=date_add&orderway=desc"
+      ],
+      "filter_urls": "all"
+    },
+    {
+      "name": "Noriel",
+      "type": "html",
+      "urls": [
+        "https://noriel.ro/catalogsearch/result/?q=pokemon%20tcg&product_list_order=created_at"
+      ],
+      "filter_urls": "all",
+      "cards_only": true
+    },
+    {
+      "name": "Bebe Tei",
+      "type": "html",
+      "urls": ["https://comenzi.bebetei.ro/brand/pokemon"],
+      "link_regex": "-p\\d+/?$",
+      "cards_only": true
+    },
+    {
+      "name": "Carturesti",
+      "type": "html",
+      "urls": ["https://carturesti.ro/product/search/pokemon"],
+      "filter_urls": "all",
+      "cards_only": true,
+      "note": "untested - check the first report"
+    },
+    {
+      "name": "Smyk",
+      "type": "html",
+      "urls": ["https://www.smyk.ro/search?q=pokemon"],
+      "filter_urls": "all",
+      "cards_only": true,
+      "note": "untested - check the first report"
+    },
+    {
+      "name": "Flamey's TCG Vault",
+      "type": "html",
+      "urls": ["https://shop.flamey.ro/shop"],
+      "enabled": false,
+      "note": "shop was in maintenance and loads with JavaScript - paused"
+    }
+  ]
+}

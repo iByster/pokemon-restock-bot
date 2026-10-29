@@ -1,0 +1,69 @@
+name: Restock watch
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"        # every 5 minutes (GitHub may start runs a few minutes late)
+  workflow_dispatch:
+    inputs:
+      report:
+        description: "Send a test report of every shop to Telegram"
+        type: boolean
+        default: true
+
+concurrency:
+  group: restock-watch
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  watch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - run: pip install -r requirements.txt
+
+      # Remembers what the bot has already seen between runs
+      - uses: actions/cache/restore@v4
+        with:
+          path: state
+          key: state-${{ github.run_id }}
+          restore-keys: state-
+
+      - name: Check shops
+        env:
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          REPORT: ${{ github.event_name == 'workflow_dispatch' && inputs.report && '1' || '' }}
+        run: python bot.py
+
+      - uses: actions/cache/save@v4
+        if: always()
+        with:
+          path: state
+          key: state-${{ github.run_id }}-${{ github.run_attempt }}
+
+      # GitHub pauses scheduled workflows after 60 days without commits.
+      # This makes a tiny commit every ~50 days so the bot never stops.
+      - name: Keep alive
+        run: |
+          last=$(git log -1 --format=%ct)
+          now=$(date +%s)
+          if [ $(( (now - last) / 86400 )) -ge 50 ]; then
+            git config user.name "restock-bot"
+            git config user.email "restock-bot@users.noreply.github.com"
+            date -u > .keepalive
+            git add .keepalive
+            git commit -m "keep alive"
+            git push
+          fi
