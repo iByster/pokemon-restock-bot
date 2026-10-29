@@ -205,14 +205,10 @@
       "name": "Noriel",
       "type": "html",
       "urls": [
-        "https://noriel.ro/catalogsearch/result/?q=pokemon%20tcg&product_list_order=created_at",
-        "https://noriel.ro/catalogsearch/result/?q=riftbound&product_list_order=created_at"
+        "https://noriel.ro/jocuri-de-societate/f/b/pokemon"
       ],
-      "filter_urls": "all",
       "cards_only": true,
-      "may_be_empty": [
-        "https://noriel.ro/catalogsearch/result/?q=riftbound&product_list_order=created_at"
-      ]
+      "note": "search page broke on 29 Oct - uses the Pokemon brand page in board games instead"
     },
     {
       "name": "Bebe Tei",
