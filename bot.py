@@ -57,7 +57,7 @@ def clean(text):
     return re.sub(r"\s+", " ", html.unescape(text or "")).strip()
 
 
-LANG_PREFIX = re.compile(r"^/(?:en|ro|hu|de|fr)(?=/)", re.I)
+LANG_PREFIX = re.compile(r"^(?:/(?:en|ro|hu|de|fr))+(?=/)", re.I)   # all of /ro/ro/... at once
 
 
 def norm_url(url):
