@@ -57,10 +57,15 @@ def clean(text):
     return re.sub(r"\s+", " ", html.unescape(text or "")).strip()
 
 
+LANG_PREFIX = re.compile(r"^/(?:en|ro|hu|de|fr)(?=/)", re.I)
+
+
 def norm_url(url):
+    """Stable product key: same product = same key, whatever link form the shop used
+    (http/https, www, /en/ language prefix, trailing slash, query string)."""
     p = urlsplit(url)
-    path = p.path.rstrip("/") or "/"
-    return urlunsplit((p.scheme, p.netloc.lower().replace("www.", ""), path, "", ""))
+    path = LANG_PREFIX.sub("", p.path).rstrip("/") or "/"
+    return urlunsplit(("https", p.netloc.lower().replace("www.", ""), path, "", ""))
 
 
 def avail_from_text(text):
@@ -322,11 +327,12 @@ def read_html(session, shop, urls=None):
         if not shop.get("link_regex"):
             for p in jsonld_products(soup, url):
                 found[norm_url(p["url"])] = p
-        if len(found) < 3:
-            found = html_products(soup, url, shop.get("link_regex"))
+        cards = html_products(soup, url, shop.get("link_regex"))
+        if not found or len(cards) > len(found) + 2:
+            found = cards          # no usable schema data on this page: read the product cards
         else:
             # schema data often says InStock for pre-orders; trust the visible label too
-            for k, v in html_products(soup, url, shop.get("link_regex")).items():
+            for k, v in cards.items():
                 if k in found and v["preorder"]:
                     found[k]["preorder"] = True
         if fu == "all" or url in fu:
@@ -540,6 +546,14 @@ def main():
         st["last_av"] = sum(1 for i in items.values() if i["available"])
         st["last_ok"] = now
 
+        # re-key saved items with the current key rules (so a rule change never fakes "new" items)
+        rekeyed = {}
+        for k, rec in st["items"].items():
+            nk = norm_url(k)
+            old = rekeyed.get(nk)
+            if old is None or rec.get("m", 0) < old.get("m", 0):
+                rekeyed[nk] = rec
+        st["items"] = rekeyed
         known = st["items"]
         if not st["init"]:
             for key, it in items.items():
