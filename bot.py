@@ -324,6 +324,11 @@ def read_html(session, shop, urls=None):
                 found[norm_url(p["url"])] = p
         if len(found) < 3:
             found = html_products(soup, url, shop.get("link_regex"))
+        else:
+            # schema data often says InStock for pre-orders; trust the visible label too
+            for k, v in html_products(soup, url, shop.get("link_regex")).items():
+                if k in found and v["preorder"]:
+                    found[k]["preorder"] = True
         if fu == "all" or url in fu:
             found = {k: v for k, v in found.items() if KEYWORD.search(v["title"] + " " + k)}
         if not found:
@@ -403,7 +408,8 @@ def fmt_price(p):
 
 
 def item_msg(kind, shop, it):
-    label = {"new": "🆕 NEW", "restock": "🔁 BACK IN STOCK"}[kind]
+    label = {"new": "🆕 NEW", "restock": "🔁 BACK IN STOCK",
+             "instock": "📦 NOW IN STOCK (was pre-order)"}[kind]
     pre = " (pre-order)" if it.get("preorder") else ""
     return (f"<b>{label}{pre}</b> · {html.escape(shop)}\n"
             f"{html.escape(it['title'])}{html.escape(fmt_price(it.get('price')))}\n"
@@ -537,7 +543,8 @@ def main():
         known = st["items"]
         if not st["init"]:
             for key, it in items.items():
-                known[key] = {"t": it["title"][:120], "a": it["available"], "m": 0}
+                known[key] = {"t": it["title"][:120], "a": it["available"], "m": 0,
+                              "p": bool(it.get("preorder"))}
             st["init"] = True
             continue
 
@@ -552,13 +559,18 @@ def main():
                 alerts.append(("restock", it))
             elif reappear and prev.get("m", 0) >= MISSES_FOR_GONE and it["available"] is not False:
                 alerts.append(("restock", it))
-            known[key] = {"t": it["title"][:120], "a": it["available"], "m": 0}
+            elif prev.get("p") and not it.get("preorder") and it["available"] is True:
+                alerts.append(("instock", it))   # pre-order is now shipping / in stock
+            known[key] = {"t": it["title"][:120], "a": it["available"], "m": 0,
+                          "p": bool(it.get("preorder"))}
 
         if complete:
             for key, rec in known.items():
                 if key not in items:
                     rec["m"] = min(rec.get("m", 0) + 1, 999)
 
+        for kind, it in alerts:
+            print(f"    alert {kind}: {it['title'][:70]}")
         if len(alerts) > MAX_ALERTS_PER_SHOP:
             sample = "\n".join("• " + html.escape(it["title"][:80]) for _, it in alerts[:6])
             messages.append(f"📦 <b>{html.escape(name)}</b>: {len(alerts)} new or restocked items "

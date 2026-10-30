@@ -60,15 +60,33 @@
       "type": "html",
       "urls": [
         "https://krit.ro/en/categorie/pokemon",
+        "https://krit.ro/en/categorie/pokemon?page=2",
+        "https://krit.ro/en/categorie/pokemon?page=3",
+        "https://krit.ro/en/categorie/pokemon?page=4",
+        "https://krit.ro/en/categorie/pokemon?page=5",
+        "https://krit.ro/en/categorie/pokemon?page=6",
+        "https://krit.ro/en/categorie/pokemon?page=7",
+        "https://krit.ro/en/categorie/pokemon?page=8",
+        "https://krit.ro/en/categorie/pokemon?page=9",
+        "https://krit.ro/en/categorie/pokemon?page=10",
+        "https://krit.ro/en/categorie/pokemon?page=11",
+        "https://krit.ro/en/categorie/pokemon?page=12",
+        "https://krit.ro/en/categorie/pokemon?page=13",
+        "https://krit.ro/en/categorie/pokemon?page=14",
         "https://krit.ro/en/categorie/riftbound-league-of-legends-tcg",
-        "https://krit.ro/en/categorie/pokemon?page=2&sort=stocked",
-        "https://krit.ro/en/categorie/riftbound-league-of-legends-tcg?page=2&sort=stocked"
+        "https://krit.ro/en/categorie/riftbound-league-of-legends-tcg?page=2"
       ],
       "reappear_is_restock": true,
       "may_be_empty": [
-        "https://krit.ro/en/categorie/pokemon?page=2&sort=stocked",
-        "https://krit.ro/en/categorie/riftbound-league-of-legends-tcg?page=2&sort=stocked"
-      ]
+        "https://krit.ro/en/categorie/pokemon?page=10",
+        "https://krit.ro/en/categorie/pokemon?page=11",
+        "https://krit.ro/en/categorie/pokemon?page=12",
+        "https://krit.ro/en/categorie/pokemon?page=13",
+        "https://krit.ro/en/categorie/pokemon?page=14",
+        "https://krit.ro/en/categorie/riftbound-league-of-legends-tcg?page=2"
+      ],
+      "delay": 1,
+      "note": "Krit lists only in-stock items, ~240 Pokemon over ~11 pages, and old items return to their old page when restocked, so every page is scanned."
     },
     {
       "name": "Lex Shop",
