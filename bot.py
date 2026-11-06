@@ -186,7 +186,7 @@ def classify(title, url="", hint=None):
     path = urlsplit(url).path.lower()
     if "graded" in path:
         return "graded"
-    if re.search(r"singles|raw-cards|carti-raw", path):
+    if re.search(r"singles|raw-cards|tcg-cards/|(?:^|/)carti-(?:raw|riftbound|pokemon)", path):
         return "single"
     if ACCESSORY.search(title):
         return "accessory"

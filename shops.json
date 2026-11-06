@@ -242,6 +242,49 @@
       "note": "Blocks too many requests in a row: 4 main pages every run, the other 24 categories 5 at a time (about every 25 minutes). New singles and graded cards come from the newest page."
     },
     {
+      "name": "TCGMania",
+      "type": "html",
+      "urls": [
+        "https://tcgmania.ro/pokemon?sort_by=newest",
+        "https://tcgmania.ro/riftbound?sort_by=newest",
+        "https://tcgmania.ro/elite-trainer-boxes",
+        "https://tcgmania.ro/booster-display-boxes",
+        "https://tcgmania.ro/riftbound-tcg-sets"
+      ],
+      "rotate_urls": [
+        "https://tcgmania.ro/binder-collections",
+        "https://tcgmania.ro/booster-packs",
+        "https://tcgmania.ro/battle-theme-decks",
+        "https://tcgmania.ro/booster-display-cases",
+        "https://tcgmania.ro/booster-display-bundles",
+        "https://tcgmania.ro/boxed-sets",
+        "https://tcgmania.ro/ex-boxes",
+        "https://tcgmania.ro/illustration-collections",
+        "https://tcgmania.ro/oversize-card-sets",
+        "https://tcgmania.ro/pin-sets",
+        "https://tcgmania.ro/poster-collections",
+        "https://tcgmania.ro/premium-booster-blisters",
+        "https://tcgmania.ro/premium-collections",
+        "https://tcgmania.ro/premium-figure-collections",
+        "https://tcgmania.ro/promo-packs",
+        "https://tcgmania.ro/sleeved-booster-packs",
+        "https://tcgmania.ro/starter-decks",
+        "https://tcgmania.ro/surprise-box-collections",
+        "https://tcgmania.ro/super-premium-collections",
+        "https://tcgmania.ro/tech-sticker-collection",
+        "https://tcgmania.ro/tins",
+        "https://tcgmania.ro/ultra-premium-collections",
+        "https://tcgmania.ro/v-union-boxes",
+        "https://tcgmania.ro/world-championship-decks",
+        "https://tcgmania.ro/seturi-pokemon-tcg",
+        "https://tcgmania.ro/expansiuni-pokemon-tcg",
+        "https://tcgmania.ro/riftbound-tcg-cards"
+      ],
+      "rotate_per_run": 5,
+      "delay": 5,
+      "note": "Same shop platform as PokeMANIA, so the same careful pace: 5 main pages every run, the other categories 5 at a time, each about every 30 minutes."
+    },
+    {
       "name": "Fyft",
       "type": "html",
       "urls": [
