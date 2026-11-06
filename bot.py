@@ -54,8 +54,9 @@ MERCH = re.compile(r"rucsac|ghiozdan|backpack|\bgeant|\bbag\b|\bpenar|portofel|w
                    r"\bpern[aă]|pillow|costum|pijama|[sș]osete|caiet|agend[aă]|breloc|keychain|poster|"
                    r"diecast|\bmagnet\b|benzi desenate|manga|\bcarte\b|jocuri? de societate|board game|funko|"
                    r"\bcap\b|de construit|\bpiese\b|joc interactiv|guess who|labyrinth|\bbol\b|ceramic|"
-                   r"p[aă]tur[aă]|creioane|c[aă]ciul|cizme|bluz[aă]|e[sș]arf|pantaloni|cool club", re.I)
-WEAK_SEALED = re.compile(r"collection|colec[tț]i[ae]|bundle|display|premium|\bbox\b|cutie|\bset\b|tcg", re.I)
+                   r"p[aă]tur[aă]|creioane|c[aă]ciul|cizme|bluz[aă]|e[sș]arf|pantaloni|cool club|lenjerie|"
+                   r"prosop|halat|\d\s*(?:cm|ml)\b", re.I)
+WEAK_SEALED = re.compile(r"collection|colec[tț]i[ae]|bundle|display|premium|\bbox\b|cutie|tcg", re.I)
 SET_CODE = re.compile(r"\b[A-Z][A-Z0-9]{1,4} \d{2,3}\b")    # "EVS 111", "S12A 234"
 SINGLE = re.compile(r"#\s?\d{1,3}\b|\b\d{1,3}/\d{2,3}\b|\([a-z0-9-]{2,8} \d{1,3}\)|"
                     r"[-|] ?(?:nm|lp|mp|hp)\b|\b(?:holo|reverse|illustration rare|full art)\b", re.I)
@@ -96,10 +97,10 @@ MIN_PAGE_DELAY = 1.5       # seconds between pages of one shop, on top of its ow
 MAX_EXTRA_PAGES = 30       # safety limit for "paged_urls"
 INERTIA = {}               # site build ids, kept in the saved state
 PAGE_STATS = {}            # (shop name, page) -> items found, or -1 on error
-PAGES_BAD_BEFORE_WARNING = 12   # ~1 hour of failed runs for one page
+PAGES_BAD_BEFORE_WARNING = 72   # ~6 hours of failed runs for one page: short outages aren't news
 DAILY_HOUR = 9             # daily health report, Romanian time
 MISSES_FOR_GONE = 3        # runs an item must be missing before "reappear" counts
-FAILS_BEFORE_WARNING = 12  # ~1 hour at 5-minute runs
+FAILS_BEFORE_WARNING = 72  # ~6 hours at 5-minute runs; the daily report still shows shorter ones
 MAX_ALERTS_PER_SHOP = 12
 
 
@@ -915,7 +916,7 @@ def main():
         if not usable:
             st["fails"] += 1
             if st["fails"] >= FAILS_BEFORE_WARNING and not st["warned"] and st["init"]:
-                messages.append(f"⚠️ <b>{html.escape(name)}</b> hasn't loaded for about an hour. "
+                messages.append(f"⚠️ <b>{html.escape(name)}</b> hasn't loaded for about 6 hours. "
                                 f"The shop may be down or blocking the bot.")
                 st["warned"] = True
             continue
@@ -1017,7 +1018,7 @@ def main():
             if (rec["bad"] >= PAGES_BAD_BEFORE_WARNING and not rec["warned"]
                     and sname in usable_shops):
                 what = "keeps failing to load" if n < 0 else "keeps showing 0 products"
-                messages.append(f"⚠️ <b>{html.escape(sname)}</b>: one page {what} (~1 hour).\n"
+                messages.append(f"⚠️ <b>{html.escape(sname)}</b>: one page {what} (~6 hours).\n"
                                 f"{html.escape(page)}")
                 rec["warned"] = True
         else:
