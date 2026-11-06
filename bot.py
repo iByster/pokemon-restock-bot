@@ -65,6 +65,7 @@ PRICE_REPEAT_HOURS = 24    # a price bouncing up and down alerts once a day, not
 
 READER_VERSION = 3         # bump when the shop readers change: every shop re-learns silently once
 MAX_EXTRA_PAGES = 15       # safety limit for "paged_urls"
+INERTIA = {}               # site build ids, kept in the saved state
 PAGE_STATS = {}            # (shop name, page) -> items found, or -1 on error
 PAGES_BAD_BEFORE_WARNING = 12   # ~1 hour of failed runs for one page
 DAILY_HOUR = 9             # daily health report, Romanian time
@@ -447,9 +448,31 @@ def read_html(session, shop, urls=None):
     return items, errors, len(urls)
 
 
+def inertia_props(session, shop, url):
+    """Just the product data of a page, a fraction of the page's size (paid proxy traffic).
+    The request needs the site's build id; it's kept in the saved state and refreshed on change."""
+    for _ in range(2):
+        info = INERTIA.get(shop["name"])
+        if not info:
+            tag = BeautifulSoup(get(session, url), "html.parser").find("script", attrs={"data-page": True})
+            page = json.loads(tag.get_text())
+            info = INERTIA[shop["name"]] = {"version": page["version"], "component": page["component"]}
+        r = session.get(url, timeout=TIMEOUT, headers={
+            "X-Inertia": "true", "X-Inertia-Version": str(info["version"]),
+            "X-Inertia-Partial-Component": info["component"],
+            "X-Inertia-Partial-Data": "products,currency",
+            "X-Requested-With": "XMLHttpRequest", "Accept": "application/json"})
+        if r.status_code == 409:        # the site was updated: fetch the new build id
+            INERTIA.pop(shop["name"], None)
+            continue
+        r.raise_for_status()
+        return r.json()["props"]
+    raise ValueError("site build id keeps changing")
+
+
 def read_inertia(session, shop):
-    """Shops that embed their whole product list as JSON in the page (Secret Cards).
-    It has exact stock; prices come in the currency the site picks for the visitor's country."""
+    """Shops that send their product list as JSON (Secret Cards): exact stock and sale prices.
+    The currency depends on the visitor's country, so "currency" rejects any other answer."""
     base = shop["base"].rstrip("/")
     items, errors = {}, []
     for src in shop["urls"]:
@@ -457,16 +480,18 @@ def read_inertia(session, shop):
         while page <= last:
             url = f"{src}?page={page}"
             try:
-                soup = BeautifulSoup(get(session, url), "html.parser")
-                tag = soup.find("script", attrs={"data-page": True})
-                props = json.loads(tag.get_text())["props"]
+                props = inertia_props(session, shop, url)
                 products = props["products"]
                 currency = props.get("currency") or {}
-                cur = None if currency.get("code", "RON") == "RON" else currency.get("symbol")
                 last = min(int(products.get("last_page") or 1), MAX_EXTRA_PAGES)
             except (requests.RequestException, ValueError, KeyError, TypeError, AttributeError) as e:
                 errors.append(f"{url}: {e}")
                 break
+            code = currency.get("code", "RON")
+            if shop.get("currency") and code != shop["currency"]:
+                errors.append(f"{url}: got prices in {code}")
+                break
+            cur = None if code == "RON" else currency.get("symbol")
             for p in products.get("data", []):
                 link = f"{base}/products/{p['slug']}"
                 items[norm_url(link)] = {
@@ -735,6 +760,8 @@ def main():
     if not os.environ.get("PROXY_URL", "").strip():
         shops = [s for s in shops if not s.get("use_proxy")]  # no proxy saved yet
     state = load_state()
+    INERTIA.clear()
+    INERTIA.update(state.get("inertia", {}))
     report = bool(os.environ.get("REPORT"))
     messages, report_lines = [], []
     usable_shops = set()
@@ -901,6 +928,7 @@ def main():
                         if on_sale else "🏷 No promotions found right now.")
         messages.extend(deals_msg(name, deals) for name, deals in on_sale)
 
+    state["inertia"] = dict(INERTIA)
     save_state(state)
 
     if report:

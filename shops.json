@@ -170,7 +170,9 @@
       ],
       "exclude": "lorcana|disney|one piece|yu-?gi-?oh|magic the gathering|\\bmtg\\b",
       "base": "https://secretcards.ro",
-      "note": "Reads the JSON in the page: exact stock and lei prices. Sealed-products includes all the sealed sub-categories."
+      "note": "Shows euros to visitors outside Romania, so it goes through the Romanian proxy and reads only the product data, not the whole page. Sealed-products includes all the sealed sub-categories.",
+      "use_proxy": true,
+      "currency": "RON"
     },
     {
       "name": "PokeMANIA",
