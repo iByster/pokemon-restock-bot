@@ -38,17 +38,22 @@ KEYWORD = re.compile(r"pok[eé]\u0301?mon|\bpkm\b|\bptcg\b|riftbound|league of l
 # What a product is. Order matters: see classify().
 GRADED = re.compile(r"\b(?:psa|cgc|bgs|sgc|ace|graad|tag|gg|beckett)\b[^|]{0,14}?\b\d{1,2}(?:\.5)?\b|"
                     r"\bgraded\b[^|]{0,14}?\b\d{1,2}(?:\.5)?\b", re.I)
-ACCESSORY = re.compile(r"sleeve|top ?loader|binder|\balbum|portofoliu|portfolio|playmat|deck ?box|"
+ACCESSORY = re.compile(r"sleeve|top ?loader|binder|\balbum|portofoliu|portofolio|portfolio|playmat|deck ?box|"
                        r"card ?case|acrylic|acrilic|magnetic|protec[tț]i|one[- ]touch|card saver|"
                        r"\bdice\b|\bzaruri\b|divider|pagini|buzunare|depozitare|storage|carcas", re.I)
-TCG_SEALED = re.compile(r"booster|elite trainer|\betb\b|blister|\bdeck\b|\btin\b|ultra[- ]premium|"
-                        r"super[- ]premium|premium collection|starter|\bpack\b|\bpachet", re.I)
+TCG_SEALED = re.compile(r"booster|elite trainer|\betb\b|blister|\bdecks?\b|\btins?\b|ultra[- ]premium|"
+                        r"super[- ]premium|premium collection|starter|\bpack\b|\bpachet|\btcg\b|"
+                        r"trading card game|build (?:and|&) battle|\bchest\b|trainer kit|pre-?rift|"
+                        r"pre-?release|event kit|showdown|poster collection|figure (?:collection|box)|"
+                        r"c[aă]r[tț]i de joc|cartona[sș]e", re.I)
 MERCH = re.compile(r"rucsac|ghiozdan|backpack|\bgeant|\bbag\b|\bpenar|portofel|wallet|\bplu[sș]\b|plush|"
                    r"jucari|figurin|\bfigure|statuet|tricou|t-shirt|hanorac|hoodie|[sș]apc[aă]|\bcan[aă]\b|"
                    r"\bcani\b|\bmug\b|sticl[aă]|bottle|puzzle|lego|construx|stavebnice|\blamp|\bceas|"
                    r"\bpern[aă]|pillow|costum|pijama|[sș]osete|caiet|agend[aă]|breloc|keychain|poster|"
-                   r"diecast|\bmagnet\b|benzi desenate|manga|\bcarte\b|\bjoc\b|board game", re.I)
+                   r"diecast|\bmagnet\b|benzi desenate|manga|\bcarte\b|jocuri? de societate|board game|funko|"
+                   r"\bcap\b|de construit|\bpiese\b", re.I)
 WEAK_SEALED = re.compile(r"collection|colec[tț]ie|bundle|display|premium|\bbox\b|cutie|\bset\b|tcg", re.I)
+SET_CODE = re.compile(r"\b[A-Z][A-Z0-9]{1,4} \d{2,3}\b")    # "EVS 111", "S12A 234"
 SINGLE = re.compile(r"#\s?\d{1,3}\b|\b\d{1,3}/\d{2,3}\b|\([a-z0-9-]{2,8} \d{1,3}\)|"
                     r"[-|] ?(?:nm|lp|mp|hp)\b|\b(?:holo|reverse|illustration rare|full art)\b", re.I)
 KIND_LABEL = {"sealed": "📦 Sealed", "single": "🃏 Single", "graded": "💎 Graded",
@@ -180,7 +185,7 @@ def classify(title, url="", hint=None):
         return "sealed"
     if MERCH.search(title):
         return "merch"
-    if SINGLE.search(title):
+    if SINGLE.search(title) or SET_CODE.search(title):
         return "single"
     return "sealed" if WEAK_SEALED.search(title) else "unsure"
 
