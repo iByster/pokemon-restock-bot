@@ -38,7 +38,7 @@ KEYWORD = re.compile(r"pok[eé]\u0301?mon|\bpkm\b|\bptcg\b|riftbound|league of l
 # What a product is. Order matters: see classify().
 GRADED = re.compile(r"\b(?:psa|cgc|bgs|sgc|ace|graad|tag|gg|beckett)\b[^|]{0,14}?\b\d{1,2}(?:\.5)?\b|"
                     r"\bgraded\b[^|]{0,14}?\b\d{1,2}(?:\.5)?\b", re.I)
-ACCESSORY = re.compile(r"sleeve|top ?loader|binder|\balbum|portofoliu|portofolio|portfolio|playmat|deck ?box|"
+ACCESSORY = re.compile(r"^up - |alcove|suport de joac|sleeve|top ?loader|binder|\balbum|portofoliu|portofolio|portfolio|playmat|deck ?box|"
                        r"card ?case|acrylic|acrilic|magnetic|protec[tț]i|one[- ]touch|card saver|"
                        r"\bdice\b|\bzaruri\b|divider|pagini|buzunare|depozitare|storage|carcas", re.I)
 TCG_SEALED = re.compile(r"booster|elite trainer|\betb\b|blister|\bdecks?\b|\btins?\b|ultra[- ]premium|"
