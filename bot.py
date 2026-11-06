@@ -459,6 +459,7 @@ def read_html_page(session, shop, url, track=True, template=None):
         found[k]["old"] = v["old"]
         if found[k].get("available") is None:
             found[k]["available"] = v["available"]
+    everything = set(found)
     fu = shop.get("filter_urls") or []
     if fu == "all" or url in fu or template in fu:
         found = {k: v for k, v in found.items() if KEYWORD.search(v["title"] + " " + k)}
@@ -467,11 +468,11 @@ def read_html_page(session, shop, url, track=True, template=None):
     if not found and track:
         title = soup.title.get_text(" ", strip=True)[:60] if soup.title else ""
         print(f"    [debug] {url}: 0 products, {len(page)} bytes, title={title!r}")
-    return {"found": found}
+    return {"found": found, "everything": everything}
 
 
 def read_html(session, shop, urls=None):
-    items, errors = {}, []
+    items, errors, listed = {}, [], set()
     delay = shop.get("delay") or 0
     is_fallback = urls is not None
     urls = urls or shop["urls"]
@@ -493,6 +494,7 @@ def read_html(session, shop, urls=None):
             continue
         PAGE_STATS[(shop["name"], url)] = len(res["found"])
         items.update(res["found"])
+        listed |= res["everything"]
     # Listings that span several pages: keep going until a page brings nothing new.
     # Sorting by newest only catches new products; restocked old ones stay on the last pages.
     paged = [] if is_fallback else list(shop.get("paged_urls", []))
@@ -508,10 +510,12 @@ def read_html(session, shop, urls=None):
                 if not res["gone"]:
                     errors.append(res["error"])
                 break
-            new = {k: v for k, v in res["found"].items() if k not in items}
-            if not new:
+            # stop when the page itself has nothing new, not when nothing passes the filter:
+            # mixed lists have whole pages of other games between the Pokémon ones
+            if not res["everything"] - listed:
                 break
-            items.update(new)
+            listed |= res["everything"]
+            items.update({k: v for k, v in res["found"].items() if k not in items})
     return items, errors, len(urls)
 
 
