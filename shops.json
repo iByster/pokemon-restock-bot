@@ -123,16 +123,10 @@
         "https://www.ramcards.ro/riftbound-tcg?o=news&p={n}"
       ],
       "paged_from": 1,
-      "note": "Pages count from 0 here: the second page is p=1. Raw and graded lists hold other games too, so they're filtered; their later pages are read hourly.",
+      "note": "Pages count from 0 here: the second page is p=1. For raw and graded cards only the newest page is read; those lists hold other games too, so they're filtered.",
       "filter_urls": [
         "https://www.ramcards.ro/raw-cards?o=news",
-        "https://www.ramcards.ro/graded-cards?o=news",
-        "https://www.ramcards.ro/raw-cards?o=news&p={n}",
-        "https://www.ramcards.ro/graded-cards?o=news&p={n}"
-      ],
-      "hourly_paged_urls": [
-        "https://www.ramcards.ro/raw-cards?o=news&p={n}",
-        "https://www.ramcards.ro/graded-cards?o=news&p={n}"
+        "https://www.ramcards.ro/graded-cards?o=news"
       ],
       "kinds": {
         "raw-cards": "single",
@@ -189,23 +183,24 @@
       "name": "Secret Cards",
       "type": "inertia",
       "urls": [
-        "https://secretcards.ro/categories/sealed-products",
-        "https://secretcards.ro/categories/graded-cards",
-        "https://secretcards.ro/categories/accessories"
+        "https://secretcards.ro/categories/sealed-products"
       ],
       "exclude": "lorcana|disney|one piece|yu-?gi-?oh|magic the gathering|\\bmtg\\b",
       "base": "https://secretcards.ro",
-      "note": "Shows euros outside Romania, so it goes through the Romanian proxy and reads only the product data. ~3,600 singles: first page every run, 4 more in turn, so the whole list takes about 2.5 hours.",
+      "note": "Goes through the paid Romanian proxy for lei prices, so it stays small: sealed every run, and once an hour the newest in-stock singles, graded cards and accessories.",
       "use_proxy": true,
       "currency": "RON",
-      "rotate_src": "https://secretcards.ro/categories/pokemon-tcg",
-      "rotate_pages": 4,
       "kinds": {
         "sealed-products": "sealed",
         "graded-cards": "graded",
         "accessories": "accessory",
         "pokemon-tcg": "single"
-      }
+      },
+      "hourly_urls": [
+        "https://secretcards.ro/categories/pokemon-tcg?in_stock=1",
+        "https://secretcards.ro/categories/graded-cards?in_stock=1",
+        "https://secretcards.ro/categories/accessories?in_stock=1"
+      ]
     },
     {
       "name": "PokeMANIA",
@@ -216,7 +211,7 @@
         "https://pokemania.ro/booster-blisters",
         "https://pokemania.ro/pokemon?sort_by=newest"
       ],
-      "delay": 4,
+      "delay": 5,
       "rotate_urls": [
         "https://pokemania.ro/binder-collections",
         "https://pokemania.ro/booster-packs",
@@ -241,24 +236,10 @@
         "https://pokemania.ro/tins",
         "https://pokemania.ro/ultra-premium-collections",
         "https://pokemania.ro/v-union-boxes",
-        "https://pokemania.ro/world-championship-decks",
-        "https://pokemania.ro/carti-raw-negradate",
-        "https://pokemania.ro/carti-pokemon-tcg",
-        "https://pokemania.ro/carti-psa-graded",
-        "https://pokemania.ro/carti-cgc-graded",
-        "https://pokemania.ro/carti-beckett-bgs-graded",
-        "https://pokemania.ro/carti-graad-graded",
-        "https://pokemania.ro/carti-gg-graded",
-        "https://pokemania.ro/sgc-graded-pokemon-tcg-cards",
-        "https://pokemania.ro/collect-aura-graded-pokemon-tcg-cards"
+        "https://pokemania.ro/world-championship-decks"
       ],
       "rotate_per_run": 5,
-      "note": "429s above ~18 requests a run: 3 main pages every run, the other 24 categories 5 at a time, so each is read about every 25 minutes.",
-      "kinds": {
-        "carti-raw": "single",
-        "carti-pokemon-tcg": "single",
-        "-graded": "graded"
-      }
+      "note": "Blocks too many requests in a row: 4 main pages every run, the other 24 categories 5 at a time (about every 25 minutes). New singles and graded cards come from the newest page."
     },
     {
       "name": "Fyft",
@@ -287,15 +268,11 @@
         "https://regatuljocurilor.ro/ro/cautare?controller=search&search_query=pokemon&orderby=date_add&orderway=desc&page=2"
       ],
       "filter_urls": "all",
-      "note": "blocks cloud servers - checked through the DataImpulse proxy (PROXY_URL secret). Pages 3+ are read once an hour to save proxy traffic.",
+      "note": "Blocks cloud servers, so it uses the paid proxy: only the 2 newest pages. It lists only in-stock products.",
       "enabled": true,
       "use_proxy": true,
       "may_be_empty": [
         "https://regatuljocurilor.ro/ro/cautare?controller=search&search_query=pokemon&orderby=date_add&orderway=desc&page=2"
-      ],
-      "paged_from": 3,
-      "hourly_paged_urls": [
-        "https://regatuljocurilor.ro/ro/cautare?controller=search&search_query=pokemon&orderby=date_add&orderway=desc&page={n}"
       ]
     },
     {

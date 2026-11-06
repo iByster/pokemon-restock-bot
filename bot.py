@@ -14,6 +14,7 @@ Env vars:
 import html
 import json
 import os
+import random
 import re
 import sys
 import time
@@ -91,8 +92,8 @@ DROP_LIST_LINES = 20
 PRICE_REPEAT_HOURS = 24    # a price bouncing up and down alerts once a day, not every bounce
 
 READER_VERSION = 4         # bump when the shop readers change: every shop re-learns silently once
+MIN_PAGE_DELAY = 1.5       # seconds between pages of one shop, on top of its own "delay"
 MAX_EXTRA_PAGES = 30       # safety limit for "paged_urls"
-MAX_LIST_PAGES = 300       # safety limit for a shop's own page count
 INERTIA = {}               # site build ids, kept in the saved state
 PAGE_STATS = {}            # (shop name, page) -> items found, or -1 on error
 PAGES_BAD_BEFORE_WARNING = 12   # ~1 hour of failed runs for one page
@@ -167,6 +168,11 @@ def prices_from_text(text, pattern=RON_PRICE):
         return None, None
     old = found[-1] if len(found) > 1 and found[0] >= found[-1] * 0.2 else None
     return found[0], old
+
+
+def pause(shop):
+    """A person doesn't open pages at fixed intervals, and neither should the bot."""
+    time.sleep(max(shop.get("delay") or 0, MIN_PAGE_DELAY) * random.uniform(0.7, 1.6))
 
 
 def classify(title, url="", hint=None):
@@ -440,9 +446,8 @@ def read_html_page(session, shop, url, track=True, template=None):
     try:
         page = get(session, url)
     except Exception as e:  # noqa: BLE001
-        gone = (isinstance(e, requests.HTTPError) and e.response is not None
-                and e.response.status_code == 404)
-        return {"gone": gone, "error": f"{url}: {e}"}
+        code = e.response.status_code if isinstance(e, requests.HTTPError) and e.response is not None else 0
+        return {"gone": code == 404, "slow_down": code in (403, 429, 503), "error": f"{url}: {e}"}
     soup = BeautifulSoup(page, "html.parser")
     found = {}
     if not shop.get("link_regex"):
@@ -473,7 +478,6 @@ def read_html_page(session, shop, url, track=True, template=None):
 
 def read_html(session, shop, urls=None):
     items, errors, listed = {}, [], set()
-    delay = shop.get("delay") or 0
     is_fallback = urls is not None
     urls = urls or shop["urls"]
     if not is_fallback and shop.get("rotate_urls"):
@@ -483,32 +487,32 @@ def read_html(session, shop, urls=None):
         urls = urls + (spare + spare)[start:start + size]
     for i, url in enumerate(urls):
         if i:
-            time.sleep(delay)
+            pause(shop)
         res = read_html_page(session, shop, url)
         if "found" not in res:
             if res["gone"] and url in (shop.get("may_be_empty") or []):
                 PAGE_STATS[(shop["name"], url)] = 0   # optional page that doesn't exist: fine
-            else:
-                errors.append(res["error"])
-                PAGE_STATS[(shop["name"], url)] = -1
+                continue
+            errors.append(res["error"])
+            PAGE_STATS[(shop["name"], url)] = -1
+            if res["slow_down"]:                      # the shop said stop: leave it alone until next run
+                return items, errors, len(urls)
             continue
         PAGE_STATS[(shop["name"], url)] = len(res["found"])
         items.update(res["found"])
         listed |= res["everything"]
     # Listings that span several pages: keep going until a page brings nothing new.
-    # Sorting by newest only catches new products; restocked old ones stay on the last pages.
-    paged = [] if is_fallback else list(shop.get("paged_urls", []))
-    if not is_fallback and datetime.now().minute < 5:
-        paged += shop.get("hourly_paged_urls", [])    # long lists: the first page every run
-    for template in paged:
+    for template in [] if is_fallback else shop.get("paged_urls", []):
         first = int(shop.get("paged_from", 2))
         for n in range(first, first + MAX_EXTRA_PAGES):
-            time.sleep(delay)
+            pause(shop)
             url = template.replace("{n}", str(n))
             res = read_html_page(session, shop, url, track=False, template=template)
             if "found" not in res:
                 if not res["gone"]:
                     errors.append(res["error"])
+                if res["slow_down"]:
+                    return items, errors, len(urls)
                 break
             # stop when the page itself has nothing new, not when nothing passes the filter:
             # mixed lists have whole pages of other games between the Pokémon ones
@@ -544,18 +548,18 @@ def inertia_props(session, shop, url):
 def read_inertia(session, shop):
     """Shops that send their product list as JSON (Secret Cards): exact stock and sale prices.
     The currency depends on the visitor's country, so "currency" rejects any other answer.
-    "rotate_src" is a very long list: its first page every run, and a few others in turn."""
+    "hourly_urls" are long lists where only what's new matters: their first page, once an hour."""
     base = shop["base"].rstrip("/")
     items, errors = {}, []
 
     def read_page(src, page):
         """Returns the list's last page number, or None if this page failed."""
-        url = f"{src}?page={page}"
+        url = f"{src}{'&' if '?' in src else '?'}page={page}"
         try:
             props = inertia_props(session, shop, url)
             products = props["products"]
             currency = props.get("currency") or {}
-            last = min(int(products.get("last_page") or 1), MAX_LIST_PAGES)
+            last = min(int(products.get("last_page") or 1), MAX_EXTRA_PAGES)
         except (requests.RequestException, ValueError, KeyError, TypeError, AttributeError) as e:
             errors.append(f"{url}: {e}")
             return None
@@ -574,7 +578,7 @@ def read_inertia(session, shop):
                 "cur": cur,
                 "available": bool(p.get("is_in_stock")),
                 "preorder": bool(p.get("is_preorder")),
-                "src": url,
+                "src": src,
                 "hint": hint_for(shop, src),
             }
         return last
@@ -582,22 +586,18 @@ def read_inertia(session, shop):
     for src in shop["urls"]:
         before, page, last = len(items), 1, 1
         while page <= last:
+            if page > 1:
+                pause(shop)
             result = read_page(src, page)
             if result is None:
                 break
             last, page = result, page + 1
         PAGE_STATS[(shop["name"], src)] = len(items) - before if len(items) > before or not errors else -1
-    src = shop.get("rotate_src")
-    if src:
-        before = len(items)
-        last = read_page(src, 1)
-        if last and last > 1:
-            size = int(shop.get("rotate_pages", 4))
-            start = int(time.time() // 300) * size % (last - 1)
-            for n in range(size):
-                read_page(src, 2 + (start + n) % (last - 1))
-        PAGE_STATS[(shop["name"], src)] = len(items) - before if last else -1
-    return items, errors, len(shop["urls"]) + bool(src)
+    if datetime.now().minute < 5:
+        for src in shop.get("hourly_urls", []):
+            pause(shop)
+            read_page(src, 1)
+    return items, errors, len(shop["urls"])
 
 
 READERS = {"shopify": read_shopify, "woo": read_woo, "html": read_html, "inertia": read_inertia}
