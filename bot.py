@@ -1,7 +1,7 @@
 """Pokémon / Riftbound restock watcher for Romanian shops.
 
 Runs every few minutes (GitHub Actions), checks each shop in shops.json and
-sends a Telegram message when a product is NEW or BACK IN STOCK.
+sends a Telegram message when a product is NEW, BACK IN STOCK or CHEAPER.
 
 Env vars:
   TELEGRAM_TOKEN    - bot token from @BotFather
@@ -42,6 +42,22 @@ OOS = re.compile(r"stoc epuizat|epuizat|indisponibil|out of stock|sold out|"
 PRE = re.compile(r"precomand|pre-?order|pre-comand", re.I)
 INSTOCK = re.compile(r"[iî]n stoc|adaug[aă] [iî]n co[sș]|add to cart|skladem|stoc limitat|"
                      r"ultimele buc", re.I)
+
+# Prices in a product card that are NOT what you pay: left out before reading the card.
+RON_AMOUNT = r"\d[\d.,]*\s*(?:lei|ron)\b"
+PRICE_NOISE = re.compile(
+    rf"{RON_AMOUNT}\s*(?:\(?\s*(?:f[aă]r[aă]|excl\w*|ex\.?|\+)\s*tva|/\s*(?:lun[aă]|rat[aă]))"   # "155 Lei fără TVA"
+    rf"|(?:economise[sș]ti|salvezi|reducere|discount|transport|livrare|peste|minim|rate?)\b"
+    rf"[^\d]{{0,25}}{RON_AMOUNT}"                                     # "economisești 20 lei"
+    rf"|(?<!\S)[-−–]{RON_AMOUNT}", re.I)                              # "-20 lei"
+RON_PRICE = re.compile(r"(\d[\d.,]*)\s*(?:lei|ron)\b", re.I)
+
+PRICE_DROP_MIN_PCT = 3     # smaller changes are usually rounding or currency updates
+PRICE_DROP_MIN_LEI = 2
+SUSPECT_DROP_PCT = 60      # a drop this big must show up in 2 runs (could be a misread page)
+MAX_DROP_ALERTS = 5        # more drops than this from one shop arrive as one list
+DROP_LIST_LINES = 20
+PRICE_REPEAT_HOURS = 24    # a price bouncing up and down alerts once a day, not every bounce
 
 PAGE_STATS = {}            # (shop name, page) -> items found, or -1 on error
 PAGES_BAD_BEFORE_WARNING = 12   # ~1 hour of failed runs for one page
@@ -89,6 +105,35 @@ def avail_from_schema(value):
     return True, False
 
 
+def to_price(value):
+    """Number from a shop's price: 56.69, "1.019,92", "1,199.90", "375,00", "1.200"."""
+    if isinstance(value, (int, float)):
+        return float(value) if value > 0 else None
+    t = re.sub(r"[^\d.,]", "", str(value or "")).strip(".,")
+    if not t:
+        return None
+    last = max(t.rfind("."), t.rfind(","))
+    if last >= 0 and len(t) - last - 1 in (1, 2):      # the last separator is the decimal one
+        t = re.sub(r"[.,]", "", t[:last]) + "." + t[last + 1:]
+    else:
+        t = re.sub(r"[.,]", "", t)
+    try:
+        return float(t) or None
+    except ValueError:
+        return None
+
+
+def prices_from_text(text):
+    """(current price, crossed-out price) from a product card's visible text.
+    Shops print the two in either order, so the lower one is what you pay."""
+    found = [to_price(m) for m in RON_PRICE.findall(PRICE_NOISE.sub(" ", text))]
+    found = sorted({p for p in found if p})
+    if not found:
+        return None, None
+    old = found[-1] if len(found) > 1 and found[0] >= found[-1] * 0.2 else None
+    return found[0], old
+
+
 def make_session():
     s = requests.Session()
     s.headers.update({
@@ -128,11 +173,14 @@ def read_shopify(session, shop):
         if require_keyword and not KEYWORD.search(blob):
             return
         variants = p.get("variants") or [{}]
+        buyable = [v for v in variants if v.get("available")] or variants
+        cheapest = min(buyable, key=lambda v: to_price(v.get("price")) or float("inf"))
         url = norm_url(f"{base}/products/{p['handle']}")
         items[url] = {
             "title": clean(p.get("title")),
             "url": f"{base}/products/{p['handle']}",
-            "price": variants[0].get("price"),
+            "price": cheapest.get("price"),
+            "old": cheapest.get("compare_at_price"),
             "available": any(v.get("available") for v in variants),
             "preorder": bool(PRE.search(p.get("title", "") + " " + tags)),
         }
@@ -183,13 +231,14 @@ def read_woo(session, shop):
             if not KEYWORD.search(f"{name} {cats}"):
                 continue
             prices = p.get("prices") or {}
-            price = None
-            if prices.get("price"):
-                price = int(prices["price"]) / 10 ** int(prices.get("currency_minor_unit", 2))
+            unit = 10 ** int(prices.get("currency_minor_unit", 2))
+            price = int(prices["price"]) / unit if prices.get("price") else None
+            regular = int(prices["regular_price"]) / unit if prices.get("regular_price") else None
             items[norm_url(p["permalink"])] = {
                 "title": name,
                 "url": p["permalink"],
                 "price": price,
+                "old": regular,
                 "available": bool(p.get("is_in_stock")),
                 "preorder": bool(p.get("is_on_backorder")) or bool(PRE.search(name)),
             }
@@ -296,7 +345,8 @@ def html_products(soup, page_url, link_regex=None):
         if not title and pattern:
             title = urlsplit(full).path.rsplit("/", 1)[-1].replace("-", " ")
         av, pre = avail_from_text(text)
-        out[key] = {"title": title, "url": full, "price": None,
+        price, old = prices_from_text(text)
+        out[key] = {"title": title, "url": full, "price": price, "old": old,
                     "available": av, "preorder": pre}
     return out
 
@@ -332,9 +382,13 @@ def read_html(session, shop, urls=None):
             found = cards          # no usable schema data on this page: read the product cards
         else:
             # schema data often says InStock for pre-orders; trust the visible label too
+            # and it rarely has the crossed-out price, or sometimes any price
             for k, v in cards.items():
-                if k in found and v["preorder"]:
-                    found[k]["preorder"] = True
+                if k in found:
+                    if v["preorder"]:
+                        found[k]["preorder"] = True
+                    found[k]["price"] = found[k].get("price") or v["price"]
+                    found[k]["old"] = v["old"]
         if fu == "all" or url in fu:
             found = {k: v for k, v in found.items() if KEYWORD.search(v["title"] + " " + k)}
         if not found:
@@ -370,6 +424,11 @@ def check_shop(shop):
         items = {k: v for k, v in items.items() if not ex.search(v["title"] + " " + k)}
     if shop.get("cards_only"):
         items = {k: v for k, v in items.items() if CARDS.search(v["title"])}
+    for v in items.values():
+        v["price"] = to_price(v.get("price"))
+        v["old"] = to_price(v.get("old"))
+        if not v["price"] or not v["old"] or v["old"] <= v["price"]:
+            v["old"] = None
     if shop.get("unknown_is_in_stock"):
         # shop only labels sold-out items; anything without the label is buyable
         for v in items.values():
@@ -404,13 +463,19 @@ def send(text):
             time.sleep(2)
 
 
-def fmt_price(p):
-    if p in (None, "", 0):
-        return ""
-    try:
-        return f" · {float(p):.2f} lei".replace(".00 lei", " lei")
-    except (TypeError, ValueError):
-        return f" · {p}"
+def lei(p):
+    return f"{p:.2f}".replace(".00", "") + " lei"
+
+
+def pct(old, new):
+    return round((old - new) / old * 100)
+
+
+def fmt_price(it):
+    p, old = it.get("price"), it.get("old")
+    if not p:
+        return " · price not shown"
+    return f" · {lei(p)}" + (f" (was {lei(old)}, -{pct(old, p)}%)" if old else "")
 
 
 def item_msg(kind, shop, it):
@@ -418,8 +483,33 @@ def item_msg(kind, shop, it):
              "instock": "📦 NOW IN STOCK (was pre-order)"}[kind]
     pre = " (pre-order)" if it.get("preorder") else ""
     return (f"<b>{label}{pre}</b> · {html.escape(shop)}\n"
-            f"{html.escape(it['title'])}{html.escape(fmt_price(it.get('price')))}\n"
+            f"{html.escape(it['title'])}{html.escape(fmt_price(it))}\n"
             f"{html.escape(it['url'])}")
+
+
+def drop_msg(shop, it, before):
+    return (f"<b>💸 PRICE DROP -{pct(before, it['price'])}%</b> · {html.escape(shop)}\n"
+            f"{html.escape(it['title'])}\n"
+            f"{lei(before)} → <b>{lei(it['price'])}</b>\n"
+            f"{html.escape(it['url'])}")
+
+
+def drops_list_msg(shop, drops):
+    """Shop-wide sale: one message, biggest discounts first, within Telegram's size limit."""
+    drops = sorted(drops, key=lambda d: pct(d[1], d[0]["price"]), reverse=True)
+    head = f"<b>💸 {len(drops)} PRICE DROPS</b> · {html.escape(shop)}"
+    lines, room = [], 3700 - len(head)
+    for it, before in drops[:DROP_LIST_LINES]:
+        line = (f"• -{pct(before, it['price'])}% "
+                f"<a href=\"{html.escape(it['url'], quote=True)}\">{html.escape(it['title'][:60])}</a> "
+                f"{lei(before)} → {lei(it['price'])}")
+        room -= len(line) + 1
+        if room < 0:
+            break
+        lines.append(line)
+    if len(drops) > len(lines):
+        lines.append(f"…and {len(drops) - len(lines)} more")
+    return "\n".join([head] + lines)
 
 
 # ---------------------------------------------------------------- health
@@ -442,7 +532,8 @@ def health_text(state, shops, title):
         down = st.get("fails", 0) >= 3
         icon = "❌" if down else ("⚠️" if bad else "✅")
         problems += down or bool(bad)
-        line = f"{icon} {html.escape(name)}: {st.get('last_n', 0)} products ({st.get('last_av', 0)} in stock)"
+        line = (f"{icon} {html.escape(name)}: {st.get('last_n', 0)} products "
+                f"({st.get('last_av', 0)} in stock, {st.get('last_pr', 0)} priced)")
         if down:
             mins = int((now - st["last_ok"]) / 60)
             line += f" · not loading for {mins} min"
@@ -494,6 +585,23 @@ def save_state(state):
     os.replace(tmp, STATE_FILE)
 
 
+def check_drop(price, before, prev, rec, now):
+    """Decide on a lower price and update the saved record. Returns "alert" or None."""
+    drop = before - price
+    rec["pr"] = price
+    rec.pop("pend", None)
+    if drop < PRICE_DROP_MIN_LEI or drop / before * 100 < PRICE_DROP_MIN_PCT:
+        return None
+    if drop / before * 100 >= SUSPECT_DROP_PCT and prev.get("pend") != price:
+        rec["pr"], rec["pend"] = before, price     # wait for the next run to confirm it
+        return None
+    if (prev.get("drop_p") and price >= prev["drop_p"]
+            and now - prev.get("drop_t", 0) < PRICE_REPEAT_HOURS * 3600):
+        return None                                # same offer already sent today
+    rec["drop_p"], rec["drop_t"] = price, now
+    return "alert"
+
+
 def main():
     with open(SHOPS_FILE, encoding="utf-8") as f:
         shops = [s for s in json.load(f)["shops"] if s.get("enabled", True)]
@@ -522,7 +630,8 @@ def main():
         line = f"{'✅' if usable else '❌'} {name}: {len(items)} items"
         if usable:
             n_av = sum(1 for i in items.values() if i["available"])
-            line += f" ({n_av} in stock)"
+            n_pr = sum(1 for i in items.values() if i["price"])
+            line += f" ({n_av} in stock, {n_pr} priced)"
             line += f" e.g. {next(iter(items.values()))['title'][:50]}"
         if errors:
             line += f" | errors: {len(errors)}/{n_sources}"
@@ -544,6 +653,7 @@ def main():
         usable_shops.add(name)
         st["last_n"] = len(items)
         st["last_av"] = sum(1 for i in items.values() if i["available"])
+        st["last_pr"] = sum(1 for i in items.values() if i["price"])
         st["last_ok"] = now
 
         # re-key saved items with the current key rules (so a rule change never fakes "new" items)
@@ -558,14 +668,15 @@ def main():
         if not st["init"]:
             for key, it in items.items():
                 known[key] = {"t": it["title"][:120], "a": it["available"], "m": 0,
-                              "p": bool(it.get("preorder"))}
+                              "p": bool(it.get("preorder")), "pr": it["price"]}
             st["init"] = True
             continue
 
         reappear = shop.get("reappear_is_restock", shop["type"] == "woo")
-        alerts = []
+        alerts, drops = [], []
         for key, it in items.items():
             prev = known.get(key)
+            n_before = len(alerts)
             if prev is None:
                 if it["available"] is not False:
                     alerts.append(("new", it))
@@ -575,8 +686,21 @@ def main():
                 alerts.append(("restock", it))
             elif prev.get("p") and not it.get("preorder") and it["available"] is True:
                 alerts.append(("instock", it))   # pre-order is now shipping / in stock
-            known[key] = {"t": it["title"][:120], "a": it["available"], "m": 0,
-                          "p": bool(it.get("preorder"))}
+            rec = {"t": it["title"][:120], "a": it["available"], "m": 0,
+                   "p": bool(it.get("preorder")), "pr": (prev or {}).get("pr")}
+            for k in ("drop_p", "drop_t"):
+                if prev and k in prev:
+                    rec[k] = prev[k]
+            if it["price"]:
+                before = rec["pr"]
+                if (not before or it["price"] >= before or len(alerts) > n_before
+                        or it["available"] is False):
+                    rec["pr"] = it["price"]    # first price seen, a rise, or it's alerting anyway
+                else:
+                    kind = check_drop(it["price"], before, prev, rec, now)
+                    if kind == "alert":
+                        drops.append((it, before))
+            known[key] = rec
 
         if complete:
             for key, rec in known.items():
@@ -586,11 +710,18 @@ def main():
         for kind, it in alerts:
             print(f"    alert {kind}: {it['title'][:70]}")
         if len(alerts) > MAX_ALERTS_PER_SHOP:
-            sample = "\n".join("• " + html.escape(it["title"][:80]) for _, it in alerts[:6])
+            sample = "\n".join("• " + html.escape(it["title"][:80] + fmt_price(it))
+                                for _, it in alerts[:6])
             messages.append(f"📦 <b>{html.escape(name)}</b>: {len(alerts)} new or restocked items "
                             f"at once (big drop, or the shop changed its site):\n{sample}")
         else:
             messages.extend(item_msg(kind, name, it) for kind, it in alerts)
+        for it, before in drops:
+            print(f"    price drop: {it['title'][:60]} {before} -> {it['price']}")
+        if len(drops) > MAX_DROP_ALERTS:
+            messages.append(drops_list_msg(name, drops))
+        else:
+            messages.extend(drop_msg(name, it, before) for it, before in drops)
 
     # ------------------------------------------------ health check per page
     runs = [t for t in state.get("runs", []) if now - t < 26 * 3600]
