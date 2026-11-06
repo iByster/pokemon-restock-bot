@@ -33,7 +33,7 @@ UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
       "(KHTML, like Gecko) Chrome/130.0 Safari/537.36")
 TIMEOUT = 25
 
-KEYWORD = re.compile(r"pok[eé]mon|\bpkm\b|riftbound|league of legends", re.I)
+KEYWORD = re.compile(r"pok[eé]\u0301?mon|\bpkm\b|\bptcg\b|riftbound|league of legends", re.I)
 CARDS = re.compile(r"tcg|booster|elite trainer|\betb\b|c[aă]r[tț]i|carton[aș]|blister|\btin\b|"
                    r"collection|colec[tț]ie|deck|bundle|display|premium|binder|sleeve", re.I)
 PRICE = re.compile(r"\d[\d.,]*\s*(?:lei|ron|eur|€)(?![a-z])|(?<![a-z])(?:lei|ron|eur|€)\s*\d", re.I)
@@ -50,7 +50,7 @@ PRICE_NOISE = re.compile(
     rf"|(?:economise[sș]ti|salvezi|reducere|discount|transport|livrare|peste|minim|rate?)\b"
     rf"[^\d]{{0,25}}{RON_AMOUNT}"                                     # "economisești 20 lei"
     rf"|(?<!\S)[-−–]{RON_AMOUNT}", re.I)                              # "-20 lei"
-RON_PRICE = re.compile(r"(\d[\d.,]*)\s*(?:lei|ron)\b", re.I)
+RON_PRICE = re.compile(r"(\d[\d.,]*)\s*(?:lei|ron)\b|\b(?:lei|ron)\s*(\d[\d.,]*)", re.I)
 
 PRICE_DROP_MIN_PCT = 3     # smaller changes are usually rounding or currency updates
 PRICE_DROP_MIN_LEI = 2
@@ -59,6 +59,8 @@ MAX_DROP_ALERTS = 5        # more drops than this from one shop arrive as one li
 DROP_LIST_LINES = 20
 PRICE_REPEAT_HOURS = 24    # a price bouncing up and down alerts once a day, not every bounce
 
+READER_VERSION = 2         # bump when the shop readers change: every shop re-learns silently once
+MAX_EXTRA_PAGES = 15       # safety limit for "paged_urls"
 PAGE_STATS = {}            # (shop name, page) -> items found, or -1 on error
 PAGES_BAD_BEFORE_WARNING = 12   # ~1 hour of failed runs for one page
 DAILY_HOUR = 9             # daily health report, Romanian time
@@ -126,7 +128,7 @@ def to_price(value):
 def prices_from_text(text):
     """(current price, crossed-out price) from a product card's visible text.
     Shops print the two in either order, so the lower one is what you pay."""
-    found = [to_price(m) for m in RON_PRICE.findall(PRICE_NOISE.sub(" ", text))]
+    found = [to_price(a or b) for a, b in RON_PRICE.findall(PRICE_NOISE.sub(" ", text))]
     found = sorted({p for p in found if p})
     if not found:
         return None, None
@@ -285,16 +287,22 @@ def jsonld_products(soup, page_url):
     return found
 
 
-def card_of(a):
+def card_of(a, page_url, pattern=None):
     """Climb from a product link to its product card, stopping before the
     element that also contains other products."""
-    href = a.get("href")
+    def key(x):
+        return norm_url(urljoin(page_url, x.get("href")))
+
+    def is_product(x):
+        return pattern.search(urlsplit(key(x)).path) if pattern else x.find("img")
+
+    href = key(a)
     card = a
     for _ in range(6):
         parent = card.parent
         if parent is None or len(clean(parent.get_text(" "))) >= 400:
             break
-        others = {x.get("href") for x in parent.find_all("a", href=True) if x.find("img")}
+        others = {key(x) for x in parent.find_all("a", href=True) if is_product(x)}
         others.discard(href)
         if others:
             break
@@ -334,7 +342,7 @@ def html_products(soup, page_url, link_regex=None):
                 continue
         elif not a.find("img") or len(clean(a.get_text(" "))) > 200:
             continue
-        card = card_of(a)
+        card = card_of(a, page_url, pattern)
         text = clean(card.get_text(" "))
         if not pattern and (len(text) >= 400 or not PRICE.search(text)):
             continue
@@ -347,55 +355,78 @@ def html_products(soup, page_url, link_regex=None):
         av, pre = avail_from_text(text)
         price, old = prices_from_text(text)
         out[key] = {"title": title, "url": full, "price": price, "old": old,
-                    "available": av, "preorder": pre}
+                    "available": av, "preorder": pre, "card": text[:200]}
     return out
+
+
+def read_html_page(session, shop, url, track=True):
+    """Products on one page, or None if it couldn't be read. Raises nothing."""
+    try:
+        page = get(session, url)
+    except Exception as e:  # noqa: BLE001
+        gone = (isinstance(e, requests.HTTPError) and e.response is not None
+                and e.response.status_code == 404)
+        return {"gone": gone, "error": f"{url}: {e}"}
+    soup = BeautifulSoup(page, "html.parser")
+    found = {}
+    if not shop.get("link_regex"):
+        for p in jsonld_products(soup, url):
+            found[norm_url(p["url"])] = p
+    for k, v in html_products(soup, url, shop.get("link_regex")).items():
+        if k not in found:
+            found[k] = v           # shop data can leave products out: the page itself has them
+            continue
+        # shop data often says InStock for pre-orders, and rarely has the crossed-out price
+        found[k]["preorder"] = found[k]["preorder"] or v["preorder"]
+        found[k]["price"] = found[k].get("price") or v["price"]
+        found[k]["old"] = v["old"]
+        if found[k].get("available") is None:
+            found[k]["available"] = v["available"]
+    fu = shop.get("filter_urls") or []
+    if fu == "all" or url in fu or shop.get("filter_paged"):
+        found = {k: v for k, v in found.items() if KEYWORD.search(v["title"] + " " + k)}
+    if not found and track:
+        title = soup.title.get_text(" ", strip=True)[:60] if soup.title else ""
+        print(f"    [debug] {url}: 0 products, {len(page)} bytes, title={title!r}")
+    return {"found": found}
 
 
 def read_html(session, shop, urls=None):
     items, errors = {}, []
-    fu = shop.get("filter_urls") or []
+    delay = shop.get("delay") or 0
+    is_fallback = urls is not None
     urls = urls or shop["urls"]
     for i, url in enumerate(urls):
-        if i and shop.get("delay"):
-            time.sleep(shop["delay"])
-        try:
-            page = get(session, url)
-        except requests.HTTPError as e:
-            optional = url in (shop.get("may_be_empty") or [])
-            if optional and e.response is not None and e.response.status_code == 404:
-                PAGE_STATS[(shop["name"], url)] = 0   # page 2 that doesn't exist yet: fine
-                continue
-            errors.append(f"{url}: {e}")
-            PAGE_STATS[(shop["name"], url)] = -1
+        if i:
+            time.sleep(delay)
+        res = read_html_page(session, shop, url)
+        if "found" not in res:
+            if res["gone"] and url in (shop.get("may_be_empty") or []):
+                PAGE_STATS[(shop["name"], url)] = 0   # optional page that doesn't exist: fine
+            else:
+                errors.append(res["error"])
+                PAGE_STATS[(shop["name"], url)] = -1
             continue
-        except Exception as e:  # noqa: BLE001
-            errors.append(f"{url}: {e}")
-            PAGE_STATS[(shop["name"], url)] = -1
-            continue
-        soup = BeautifulSoup(page, "html.parser")
-        found = {}
-        if not shop.get("link_regex"):
-            for p in jsonld_products(soup, url):
-                found[norm_url(p["url"])] = p
-        cards = html_products(soup, url, shop.get("link_regex"))
-        if not found or len(cards) > len(found) + 2:
-            found = cards          # no usable schema data on this page: read the product cards
-        else:
-            # schema data often says InStock for pre-orders; trust the visible label too
-            # and it rarely has the crossed-out price, or sometimes any price
-            for k, v in cards.items():
-                if k in found:
-                    if v["preorder"]:
-                        found[k]["preorder"] = True
-                    found[k]["price"] = found[k].get("price") or v["price"]
-                    found[k]["old"] = v["old"]
-        if fu == "all" or url in fu:
-            found = {k: v for k, v in found.items() if KEYWORD.search(v["title"] + " " + k)}
-        if not found:
-            title = soup.title.get_text(" ", strip=True)[:60] if soup.title else ""
-            print(f"    [debug] {url}: 0 products, {len(page)} bytes, title={title!r}")
-        PAGE_STATS[(shop["name"], url)] = len(found)
-        items.update(found)
+        PAGE_STATS[(shop["name"], url)] = len(res["found"])
+        items.update(res["found"])
+    # Listings that span several pages: keep going until a page brings nothing new.
+    # Sorting by newest only catches new products; restocked old ones stay on the last pages.
+    paged = [] if is_fallback else shop.get("paged_urls", [])
+    if shop.get("deep_hourly") and datetime.now().minute >= 5:
+        paged = []         # paid proxy traffic: read the deeper pages once an hour
+    for template in paged:
+        for n in range(2, 2 + MAX_EXTRA_PAGES):
+            time.sleep(delay)
+            url = template.replace("{n}", str(n))
+            res = read_html_page(session, shop, url, track=False)
+            if "found" not in res:
+                if not res["gone"]:
+                    errors.append(res["error"])
+                break
+            new = {k: v for k, v in res["found"].items() if k not in items}
+            if not new:
+                break
+            items.update(new)
     return items, errors, len(urls)
 
 
@@ -445,7 +476,7 @@ def send(text):
     if os.environ.get("DRY_RUN") or not token or not chat:
         print("---- message ----\n" + text)
         return
-    for attempt in range(3):
+    for attempt in range(6):
         try:
             r = requests.post(f"https://api.telegram.org/bot{token}/sendMessage",
                               data={"chat_id": chat, "text": text[:4000],
@@ -485,6 +516,23 @@ def item_msg(kind, shop, it):
     return (f"<b>{label}{pre}</b> · {html.escape(shop)}\n"
             f"{html.escape(it['title'])}{html.escape(fmt_price(it))}\n"
             f"{html.escape(it['url'])}")
+
+
+def alerts_list_msg(shop, alerts):
+    """Big drop: one message that still lists every item it can, with links."""
+    head = (f"<b>📦 {len(alerts)} new or restocked</b> · {html.escape(shop)} "
+            f"(big drop, or the shop changed its site)")
+    lines, room = [], 3700 - len(head)
+    for _, it in alerts:
+        line = (f"• <a href=\"{html.escape(it['url'], quote=True)}\">{html.escape(it['title'][:60])}</a>"
+                f"{html.escape(fmt_price(it))}")
+        room -= len(line) + 1
+        if room < 0:
+            break
+        lines.append(line)
+    if len(alerts) > len(lines):
+        lines.append(f"…and {len(alerts) - len(lines)} more")
+    return "\n".join([head] + lines)
 
 
 def drop_msg(shop, it, before):
@@ -620,7 +668,9 @@ def main():
     for shop, items, errors, n_sources in results:
         name = shop["name"]
         st = state["shops"].setdefault(name, {"items": {}, "fails": 0, "warned": False, "init": False})
-        sig = json.dumps({k: v for k, v in shop.items() if k not in ("note", "_help", "may_be_empty")}, sort_keys=True)
+        sig = json.dumps({"reader": READER_VERSION,
+                          **{k: v for k, v in shop.items() if k not in ("note", "_help", "may_be_empty")}},
+                         sort_keys=True)
         if st.get("sig") != sig:
             st["init"] = False   # shop settings changed: re-learn silently, no alert flood
             st["sig"] = sig
@@ -637,6 +687,8 @@ def main():
             line += f" | errors: {len(errors)}/{n_sources}"
         report_lines.append(line)
         print(line)
+        if usable and not n_pr:
+            print(f"    [debug] no prices read, card text: {next(iter(items.values())).get('card', '')!r}")
         for e in errors:
             print("   ", e[:200])
 
@@ -710,10 +762,7 @@ def main():
         for kind, it in alerts:
             print(f"    alert {kind}: {it['title'][:70]}")
         if len(alerts) > MAX_ALERTS_PER_SHOP:
-            sample = "\n".join("• " + html.escape(it["title"][:80] + fmt_price(it))
-                                for _, it in alerts[:6])
-            messages.append(f"📦 <b>{html.escape(name)}</b>: {len(alerts)} new or restocked items "
-                            f"at once (big drop, or the shop changed its site):\n{sample}")
+            messages.append(alerts_list_msg(name, alerts))
         else:
             messages.extend(item_msg(kind, name, it) for kind, it in alerts)
         for it, before in drops:

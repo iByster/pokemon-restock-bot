@@ -34,7 +34,7 @@
       "filter_collections": [
         "other-card-games"
       ],
-      "max_pages": 3
+      "max_pages": 5
     },
     {
       "name": "dexHIT",
@@ -46,14 +46,14 @@
       "enabled": true,
       "note": "blocks cloud servers - checked through the DataImpulse proxy (PROXY_URL secret)",
       "use_proxy": true,
-      "per_page": 40,
+      "per_page": 100,
       "max_pages": 1
     },
     {
       "name": "LootShop",
       "type": "woo",
       "base": "https://lootshop.ro",
-      "max_pages": 3
+      "max_pages": 6
     },
     {
       "name": "Krit",
@@ -93,13 +93,11 @@
       "type": "html",
       "urls": [
         "https://www.lexshop.ro/pokemon-tcg?o=news",
-        "https://www.lexshop.ro/riftbound-league-of-legends-tcg?o=news",
-        "https://www.lexshop.ro/pokemon-tcg?o=news&p=2",
-        "https://www.lexshop.ro/riftbound-league-of-legends-tcg?o=news&p=2"
+        "https://www.lexshop.ro/riftbound-league-of-legends-tcg?o=news"
       ],
-      "may_be_empty": [
-        "https://www.lexshop.ro/pokemon-tcg?o=news&p=2",
-        "https://www.lexshop.ro/riftbound-league-of-legends-tcg?o=news&p=2"
+      "paged_urls": [
+        "https://www.lexshop.ro/pokemon-tcg?o=news&p={n}",
+        "https://www.lexshop.ro/riftbound-league-of-legends-tcg?o=news&p={n}"
       ]
     },
     {
@@ -107,13 +105,11 @@
       "type": "html",
       "urls": [
         "https://www.ramcards.ro/pokemon-tcg?o=news",
-        "https://www.ramcards.ro/riftbound-tcg?o=news",
-        "https://www.ramcards.ro/pokemon-tcg?o=news&p=2",
-        "https://www.ramcards.ro/riftbound-tcg?o=news&p=2"
+        "https://www.ramcards.ro/riftbound-tcg?o=news"
       ],
-      "may_be_empty": [
-        "https://www.ramcards.ro/pokemon-tcg?o=news&p=2",
-        "https://www.ramcards.ro/riftbound-tcg?o=news&p=2"
+      "paged_urls": [
+        "https://www.ramcards.ro/pokemon-tcg?o=news&p={n}",
+        "https://www.ramcards.ro/riftbound-tcg?o=news&p={n}"
       ]
     },
     {
@@ -121,13 +117,11 @@
       "type": "html",
       "urls": [
         "https://www.cardxtcg.ro/produse?c=pokemon&o=news",
-        "https://www.cardxtcg.ro/league-of-legends-riftbound?o=news",
-        "https://www.cardxtcg.ro/produse?c=pokemon&o=news&p=2",
-        "https://www.cardxtcg.ro/league-of-legends-riftbound?o=news&p=2"
+        "https://www.cardxtcg.ro/league-of-legends-riftbound?o=news"
       ],
-      "may_be_empty": [
-        "https://www.cardxtcg.ro/produse?c=pokemon&o=news&p=2",
-        "https://www.cardxtcg.ro/league-of-legends-riftbound?o=news&p=2"
+      "paged_urls": [
+        "https://www.cardxtcg.ro/produse?c=pokemon&o=news&p={n}",
+        "https://www.cardxtcg.ro/league-of-legends-riftbound?o=news&p={n}"
       ]
     },
     {
@@ -155,13 +149,11 @@
       "type": "html",
       "urls": [
         "https://www.tcg-shop.ro/category/pokemon",
-        "https://www.tcg-shop.ro/category/riftbound-league-of-legends-tcg",
-        "https://www.tcg-shop.ro/category/pokemon?page=2",
-        "https://www.tcg-shop.ro/category/riftbound-league-of-legends-tcg?page=2"
+        "https://www.tcg-shop.ro/category/riftbound-league-of-legends-tcg"
       ],
-      "may_be_empty": [
-        "https://www.tcg-shop.ro/category/pokemon?page=2",
-        "https://www.tcg-shop.ro/category/riftbound-league-of-legends-tcg?page=2"
+      "paged_urls": [
+        "https://www.tcg-shop.ro/category/pokemon?page={n}",
+        "https://www.tcg-shop.ro/category/riftbound-league-of-legends-tcg?page={n}"
       ]
     },
     {
@@ -174,7 +166,10 @@
       ],
       "exclude": "lorcana|disney|one piece|yu-?gi-?oh|magic the gathering|\\bmtg\\b",
       "may_be_empty": "all",
-      "reappear_is_restock": true
+      "reappear_is_restock": true,
+      "paged_urls": [
+        "https://secretcards.ro/categories/sealed-products?page={n}"
+      ]
     },
     {
       "name": "PokeMANIA",
@@ -182,9 +177,59 @@
       "urls": [
         "https://pokemania.ro/elite-trainer-boxes",
         "https://pokemania.ro/booster-display-boxes",
-        "https://pokemania.ro/booster-blisters"
+        "https://pokemania.ro/booster-blisters",
+        "https://pokemania.ro/binder-collections",
+        "https://pokemania.ro/booster-packs",
+        "https://pokemania.ro/battle-theme-decks",
+        "https://pokemania.ro/booster-display-cases",
+        "https://pokemania.ro/booster-display-bundles",
+        "https://pokemania.ro/boxed-sets",
+        "https://pokemania.ro/ex-boxes",
+        "https://pokemania.ro/illustration-collections",
+        "https://pokemania.ro/oversize-card-sets",
+        "https://pokemania.ro/pin-sets",
+        "https://pokemania.ro/poster-collections",
+        "https://pokemania.ro/premium-booster-blisters",
+        "https://pokemania.ro/premium-collections",
+        "https://pokemania.ro/premium-figure-collections",
+        "https://pokemania.ro/promo-packs",
+        "https://pokemania.ro/sleeved-booster-packs",
+        "https://pokemania.ro/starter-decks",
+        "https://pokemania.ro/surprise-box-collections",
+        "https://pokemania.ro/super-premium-collections",
+        "https://pokemania.ro/tech-sticker-collection",
+        "https://pokemania.ro/tins",
+        "https://pokemania.ro/ultra-premium-collections",
+        "https://pokemania.ro/v-union-boxes",
+        "https://pokemania.ro/world-championship-decks"
       ],
-      "delay": 4
+      "delay": 4,
+      "may_be_empty": [
+        "https://pokemania.ro/binder-collections",
+        "https://pokemania.ro/booster-packs",
+        "https://pokemania.ro/battle-theme-decks",
+        "https://pokemania.ro/booster-display-cases",
+        "https://pokemania.ro/booster-display-bundles",
+        "https://pokemania.ro/boxed-sets",
+        "https://pokemania.ro/ex-boxes",
+        "https://pokemania.ro/illustration-collections",
+        "https://pokemania.ro/oversize-card-sets",
+        "https://pokemania.ro/pin-sets",
+        "https://pokemania.ro/poster-collections",
+        "https://pokemania.ro/premium-booster-blisters",
+        "https://pokemania.ro/premium-collections",
+        "https://pokemania.ro/premium-figure-collections",
+        "https://pokemania.ro/promo-packs",
+        "https://pokemania.ro/sleeved-booster-packs",
+        "https://pokemania.ro/starter-decks",
+        "https://pokemania.ro/surprise-box-collections",
+        "https://pokemania.ro/super-premium-collections",
+        "https://pokemania.ro/tech-sticker-collection",
+        "https://pokemania.ro/tins",
+        "https://pokemania.ro/ultra-premium-collections",
+        "https://pokemania.ro/v-union-boxes",
+        "https://pokemania.ro/world-championship-decks"
+      ]
     },
     {
       "name": "Fyft",
@@ -192,15 +237,16 @@
       "urls": [
         "https://www.fyft.ro/pokemon/",
         "https://www.fyft.ro/pokemon-booster-packs-si-boxes/",
-        "https://www.fyft.ro/cautare/?string=riftbound",
-        "https://www.fyft.ro/pokemon/pagina-2/"
+        "https://www.fyft.ro/cautare/?string=riftbound"
       ],
       "filter_urls": [
         "https://www.fyft.ro/cautare/?string=riftbound"
       ],
       "may_be_empty": [
-        "https://www.fyft.ro/cautare/?string=riftbound",
-        "https://www.fyft.ro/pokemon/pagina-2/"
+        "https://www.fyft.ro/cautare/?string=riftbound"
+      ],
+      "paged_urls": [
+        "https://www.fyft.ro/pokemon/pagina-{n}/"
       ]
     },
     {
@@ -208,16 +254,17 @@
       "type": "html",
       "urls": [
         "https://regatuljocurilor.ro/ro/cautare?controller=search&search_query=pokemon&orderby=date_add&orderway=desc",
-        "https://regatuljocurilor.ro/ro/cautare?controller=search&search_query=riftbound&orderby=date_add&orderway=desc",
-        "https://regatuljocurilor.ro/ro/cautare?controller=search&search_query=pokemon&orderby=date_add&orderway=desc&page=2"
+        "https://regatuljocurilor.ro/ro/cautare?controller=search&search_query=riftbound&orderby=date_add&orderway=desc"
       ],
       "filter_urls": "all",
       "note": "blocks cloud servers - checked through the DataImpulse proxy (PROXY_URL secret)",
       "enabled": true,
       "use_proxy": true,
-      "may_be_empty": [
-        "https://regatuljocurilor.ro/ro/cautare?controller=search&search_query=pokemon&orderby=date_add&orderway=desc&page=2"
-      ]
+      "paged_urls": [
+        "https://regatuljocurilor.ro/ro/cautare?controller=search&search_query=pokemon&orderby=date_add&orderway=desc&page={n}"
+      ],
+      "filter_paged": true,
+      "deep_hourly": true
     },
     {
       "name": "Noriel",
@@ -266,23 +313,18 @@
       "type": "html",
       "urls": [
         "https://www.transylvaniagames.com/card-games/pokemon",
-        "https://www.transylvaniagames.com/card-games/pokemon?p=2",
-        "https://www.transylvaniagames.com/card-games/pokemon?p=3",
-        "https://www.transylvaniagames.com/catalogsearch/result/?q=riftbound",
-        "https://www.transylvaniagames.com/catalogsearch/result/?q=riftbound&p=2"
+        "https://www.transylvaniagames.com/catalogsearch/result/?q=riftbound"
       ],
       "filter_urls": [
-        "https://www.transylvaniagames.com/catalogsearch/result/?q=riftbound",
-        "https://www.transylvaniagames.com/catalogsearch/result/?q=riftbound&p=2"
-      ],
-      "may_be_empty": [
-        "https://www.transylvaniagames.com/card-games/pokemon?p=3",
-        "https://www.transylvaniagames.com/catalogsearch/result/?q=riftbound&p=2"
+        "https://www.transylvaniagames.com/catalogsearch/result/?q=riftbound"
       ],
       "unknown_is_in_stock": true,
       "reappear_is_restock": true,
       "delay": 2,
-      "note": "Checkpoint Cluj (Magento). Listing shows only 'Stoc epuizat' for sold-out items, no newest sort."
+      "note": "Checkpoint Cluj (Magento). Listing shows only 'Stoc epuizat' for sold-out items, no newest sort.",
+      "paged_urls": [
+        "https://www.transylvaniagames.com/card-games/pokemon?p={n}"
+      ]
     },
     {
       "name": "Flamey's TCG Vault",
