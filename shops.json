@@ -306,17 +306,18 @@
       "name": "Regatul Jocurilor",
       "type": "html",
       "urls": [
-        "https://regatuljocurilor.ro/ro/cautare?controller=search&search_query=pokemon&orderby=date_add&orderway=desc",
-        "https://regatuljocurilor.ro/ro/cautare?controller=search&search_query=riftbound&orderby=date_add&orderway=desc",
-        "https://regatuljocurilor.ro/ro/cautare?controller=search&search_query=pokemon&orderby=date_add&orderway=desc&page=2"
+        "https://regatuljocurilor.ro/ro/cautare?controller=search&search_query=pokemon&order=product.quantity.desc",
+        "https://regatuljocurilor.ro/ro/cautare?controller=search&search_query=pokemon&order=product.quantity.desc&page=2",
+        "https://regatuljocurilor.ro/ro/cautare?controller=search&search_query=riftbound&order=product.quantity.desc"
       ],
       "filter_urls": "all",
-      "note": "Blocks cloud servers, so it uses the paid proxy: only the 2 newest pages. It lists only in-stock products.",
+      "note": "Blocks cloud servers, so it uses the paid proxy. In-stock products are sorted first, so 3 pages cover everything buyable (about 26 Pokemon products at last check). A product that returns to the list is a restock.",
       "enabled": true,
       "use_proxy": true,
       "may_be_empty": [
-        "https://regatuljocurilor.ro/ro/cautare?controller=search&search_query=pokemon&orderby=date_add&orderway=desc&page=2"
-      ]
+        "https://regatuljocurilor.ro/ro/cautare?controller=search&search_query=pokemon&order=product.quantity.desc&page=2"
+      ],
+      "reappear_is_restock": true
     },
     {
       "name": "Noriel",

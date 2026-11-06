@@ -64,7 +64,7 @@ KIND_LABEL = {"sealed": "📦 Sealed", "single": "🃏 Single", "graded": "💎 
               "accessory": "🧰 Accessory", "unsure": "❔ Not sure what this is"}
 PRICE = re.compile(r"\d[\d.,]*\s*(?:lei|ron|eur|€)(?![a-z])|(?<![a-z])(?:lei|ron|eur|€)\s*\d", re.I)
 OOS = re.compile(r"stoc epuizat|epuizat|indisponibil|out of stock|sold out|"
-                 r"nu (?:este|e) [iî]n stoc|vyprod[aá]no|stoc 0\b", re.I)
+                 r"nu (?:este|e)(?: momentan)? [iî]n stoc|vyprod[aá]no|stoc 0\b", re.I)
 PRE = re.compile(r"precomand|pre-?order|pre-comand", re.I)
 INSTOCK = re.compile(r"[iî]n stoc|adaug[aă] [iî]n co[sș]|add to cart|skladem|stoc limitat|"
                      r"ultimele buc", re.I)
