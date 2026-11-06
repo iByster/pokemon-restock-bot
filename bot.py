@@ -52,6 +52,8 @@ PRICE_NOISE = re.compile(
     rf"|(?<!\S)[-−–]{RON_AMOUNT}", re.I)                              # "-20 lei"
 RON_PRICE = re.compile(r"(\d[\d.,]*)\s*(?:lei|ron)\b|\b(?:lei|ron)\s*(\d[\d.,]*)", re.I)
 
+EUR_PRICE = re.compile(r"(\d[\d.,]*)\s*(?:eur\b|€)|(?:\beur|€)\s*(\d[\d.,]*)", re.I)
+
 PRICE_DROP_MIN_PCT = 3     # smaller changes are usually rounding or currency updates
 PRICE_DROP_MIN_LEI = 2
 SUSPECT_DROP_PCT = 60      # a drop this big must show up in 2 runs (could be a misread page)
@@ -59,7 +61,7 @@ MAX_DROP_ALERTS = 5        # more drops than this from one shop arrive as one li
 DROP_LIST_LINES = 20
 PRICE_REPEAT_HOURS = 24    # a price bouncing up and down alerts once a day, not every bounce
 
-READER_VERSION = 2         # bump when the shop readers change: every shop re-learns silently once
+READER_VERSION = 3         # bump when the shop readers change: every shop re-learns silently once
 MAX_EXTRA_PAGES = 15       # safety limit for "paged_urls"
 PAGE_STATS = {}            # (shop name, page) -> items found, or -1 on error
 PAGES_BAD_BEFORE_WARNING = 12   # ~1 hour of failed runs for one page
@@ -125,10 +127,10 @@ def to_price(value):
         return None
 
 
-def prices_from_text(text):
+def prices_from_text(text, pattern=RON_PRICE):
     """(current price, crossed-out price) from a product card's visible text.
     Shops print the two in either order, so the lower one is what you pay."""
-    found = [to_price(a or b) for a, b in RON_PRICE.findall(PRICE_NOISE.sub(" ", text))]
+    found = [to_price(a or b) for a, b in pattern.findall(PRICE_NOISE.sub(" ", text))]
     found = sorted({p for p in found if p})
     if not found:
         return None, None
@@ -344,7 +346,10 @@ def html_products(soup, page_url, link_regex=None):
             continue
         card = card_of(a, page_url, pattern)
         text = clean(card.get_text(" "))
-        if not pattern and (len(text) >= 400 or not PRICE.search(text)):
+        # a picture link is a product if its card has a price or a buy/stock label
+        # (shops often hide the price of sold-out or pre-order items)
+        av, pre = avail_from_text(text)
+        if not pattern and (len(text) >= 400 or not (PRICE.search(text) or av is not None or pre)):
             continue
         key = norm_url(full)
         if key == norm_url(page_url) or key in out:
@@ -352,14 +357,17 @@ def html_products(soup, page_url, link_regex=None):
         title = title_of(a, card)
         if not title and pattern:
             title = urlsplit(full).path.rsplit("/", 1)[-1].replace("-", " ")
-        av, pre = avail_from_text(text)
         price, old = prices_from_text(text)
-        out[key] = {"title": title, "url": full, "price": price, "old": old,
+        cur = None
+        if not price:      # some shops show euros to visitors outside Romania
+            price, old = prices_from_text(text, EUR_PRICE)
+            cur = "€" if price else None
+        out[key] = {"title": title, "url": full, "price": price, "old": old, "cur": cur,
                     "available": av, "preorder": pre, "card": text[:200]}
     return out
 
 
-def read_html_page(session, shop, url, track=True):
+def read_html_page(session, shop, url, track=True, template=None):
     """Products on one page, or None if it couldn't be read. Raises nothing."""
     try:
         page = get(session, url)
@@ -378,12 +386,13 @@ def read_html_page(session, shop, url, track=True):
             continue
         # shop data often says InStock for pre-orders, and rarely has the crossed-out price
         found[k]["preorder"] = found[k]["preorder"] or v["preorder"]
-        found[k]["price"] = found[k].get("price") or v["price"]
+        if not found[k].get("price"):
+            found[k]["price"], found[k]["cur"] = v["price"], v["cur"]
         found[k]["old"] = v["old"]
         if found[k].get("available") is None:
             found[k]["available"] = v["available"]
     fu = shop.get("filter_urls") or []
-    if fu == "all" or url in fu or shop.get("filter_paged"):
+    if fu == "all" or url in fu or template in fu:
         found = {k: v for k, v in found.items() if KEYWORD.search(v["title"] + " " + k)}
     if not found and track:
         title = soup.title.get_text(" ", strip=True)[:60] if soup.title else ""
@@ -396,6 +405,11 @@ def read_html(session, shop, urls=None):
     delay = shop.get("delay") or 0
     is_fallback = urls is not None
     urls = urls or shop["urls"]
+    if not is_fallback and shop.get("rotate_urls"):
+        # small shops rate-limit: read the main pages every run, and the rest a few at a time
+        spare, size = shop["rotate_urls"], int(shop.get("rotate_per_run", 4))
+        start = int(time.time() // 300) * size % len(spare)
+        urls = urls + (spare + spare)[start:start + size]
     for i, url in enumerate(urls):
         if i:
             time.sleep(delay)
@@ -415,10 +429,11 @@ def read_html(session, shop, urls=None):
     if shop.get("deep_hourly") and datetime.now().minute >= 5:
         paged = []         # paid proxy traffic: read the deeper pages once an hour
     for template in paged:
-        for n in range(2, 2 + MAX_EXTRA_PAGES):
+        first = int(shop.get("paged_from", 2))
+        for n in range(first, first + MAX_EXTRA_PAGES):
             time.sleep(delay)
             url = template.replace("{n}", str(n))
-            res = read_html_page(session, shop, url, track=False)
+            res = read_html_page(session, shop, url, track=False, template=template)
             if "found" not in res:
                 if not res["gone"]:
                     errors.append(res["error"])
@@ -494,8 +509,8 @@ def send(text):
             time.sleep(2)
 
 
-def lei(p):
-    return f"{p:.2f}".replace(".00", "") + " lei"
+def lei(p, cur=None):
+    return f"{p:.2f}".replace(".00", "") + " " + (cur or "lei")
 
 
 def pct(old, new):
@@ -506,7 +521,8 @@ def fmt_price(it):
     p, old = it.get("price"), it.get("old")
     if not p:
         return " · price not shown"
-    return f" · {lei(p)}" + (f" (was {lei(old)}, -{pct(old, p)}%)" if old else "")
+    cur = it.get("cur")
+    return f" · {lei(p, cur)}" + (f" (was {lei(old, cur)}, -{pct(old, p)}%)" if old else "")
 
 
 def item_msg(kind, shop, it):
@@ -538,7 +554,7 @@ def alerts_list_msg(shop, alerts):
 def drop_msg(shop, it, before):
     return (f"<b>💸 PRICE DROP -{pct(before, it['price'])}%</b> · {html.escape(shop)}\n"
             f"{html.escape(it['title'])}\n"
-            f"{lei(before)} → <b>{lei(it['price'])}</b>\n"
+            f"{lei(before, it.get('cur'))} → <b>{lei(it['price'], it.get('cur'))}</b>\n"
             f"{html.escape(it['url'])}")
 
 
@@ -550,7 +566,7 @@ def drops_list_msg(shop, drops):
     for it, before in drops[:DROP_LIST_LINES]:
         line = (f"• -{pct(before, it['price'])}% "
                 f"<a href=\"{html.escape(it['url'], quote=True)}\">{html.escape(it['title'][:60])}</a> "
-                f"{lei(before)} → {lei(it['price'])}")
+                f"{lei(before, it.get('cur'))} → {lei(it['price'], it.get('cur'))}")
         room -= len(line) + 1
         if room < 0:
             break

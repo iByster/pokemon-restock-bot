@@ -177,7 +177,10 @@
       "urls": [
         "https://pokemania.ro/elite-trainer-boxes",
         "https://pokemania.ro/booster-display-boxes",
-        "https://pokemania.ro/booster-blisters",
+        "https://pokemania.ro/booster-blisters"
+      ],
+      "delay": 4,
+      "rotate_urls": [
         "https://pokemania.ro/binder-collections",
         "https://pokemania.ro/booster-packs",
         "https://pokemania.ro/battle-theme-decks",
@@ -203,33 +206,8 @@
         "https://pokemania.ro/v-union-boxes",
         "https://pokemania.ro/world-championship-decks"
       ],
-      "delay": 4,
-      "may_be_empty": [
-        "https://pokemania.ro/binder-collections",
-        "https://pokemania.ro/booster-packs",
-        "https://pokemania.ro/battle-theme-decks",
-        "https://pokemania.ro/booster-display-cases",
-        "https://pokemania.ro/booster-display-bundles",
-        "https://pokemania.ro/boxed-sets",
-        "https://pokemania.ro/ex-boxes",
-        "https://pokemania.ro/illustration-collections",
-        "https://pokemania.ro/oversize-card-sets",
-        "https://pokemania.ro/pin-sets",
-        "https://pokemania.ro/poster-collections",
-        "https://pokemania.ro/premium-booster-blisters",
-        "https://pokemania.ro/premium-collections",
-        "https://pokemania.ro/premium-figure-collections",
-        "https://pokemania.ro/promo-packs",
-        "https://pokemania.ro/sleeved-booster-packs",
-        "https://pokemania.ro/starter-decks",
-        "https://pokemania.ro/surprise-box-collections",
-        "https://pokemania.ro/super-premium-collections",
-        "https://pokemania.ro/tech-sticker-collection",
-        "https://pokemania.ro/tins",
-        "https://pokemania.ro/ultra-premium-collections",
-        "https://pokemania.ro/v-union-boxes",
-        "https://pokemania.ro/world-championship-decks"
-      ]
+      "rotate_per_run": 5,
+      "note": "429s above ~18 requests a run: 3 main pages every run, the other 24 categories 5 at a time, so each is read about every 25 minutes."
     },
     {
       "name": "Fyft",
@@ -254,17 +232,21 @@
       "type": "html",
       "urls": [
         "https://regatuljocurilor.ro/ro/cautare?controller=search&search_query=pokemon&orderby=date_add&orderway=desc",
-        "https://regatuljocurilor.ro/ro/cautare?controller=search&search_query=riftbound&orderby=date_add&orderway=desc"
+        "https://regatuljocurilor.ro/ro/cautare?controller=search&search_query=riftbound&orderby=date_add&orderway=desc",
+        "https://regatuljocurilor.ro/ro/cautare?controller=search&search_query=pokemon&orderby=date_add&orderway=desc&page=2"
       ],
       "filter_urls": "all",
-      "note": "blocks cloud servers - checked through the DataImpulse proxy (PROXY_URL secret)",
+      "note": "blocks cloud servers - checked through the DataImpulse proxy (PROXY_URL secret). Pages 3+ are read once an hour to save proxy traffic.",
       "enabled": true,
       "use_proxy": true,
       "paged_urls": [
         "https://regatuljocurilor.ro/ro/cautare?controller=search&search_query=pokemon&orderby=date_add&orderway=desc&page={n}"
       ],
-      "filter_paged": true,
-      "deep_hourly": true
+      "deep_hourly": true,
+      "may_be_empty": [
+        "https://regatuljocurilor.ro/ro/cautare?controller=search&search_query=pokemon&orderby=date_add&orderway=desc&page=2"
+      ],
+      "paged_from": 3
     },
     {
       "name": "Noriel",
@@ -316,14 +298,16 @@
         "https://www.transylvaniagames.com/catalogsearch/result/?q=riftbound"
       ],
       "filter_urls": [
-        "https://www.transylvaniagames.com/catalogsearch/result/?q=riftbound"
+        "https://www.transylvaniagames.com/catalogsearch/result/?q=riftbound",
+        "https://www.transylvaniagames.com/catalogsearch/result/?q=riftbound&p={n}"
       ],
       "unknown_is_in_stock": true,
       "reappear_is_restock": true,
       "delay": 2,
       "note": "Checkpoint Cluj (Magento). Listing shows only 'Stoc epuizat' for sold-out items, no newest sort.",
       "paged_urls": [
-        "https://www.transylvaniagames.com/card-games/pokemon?p={n}"
+        "https://www.transylvaniagames.com/card-games/pokemon?p={n}",
+        "https://www.transylvaniagames.com/catalogsearch/result/?q=riftbound&p={n}"
       ]
     },
     {
