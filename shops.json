@@ -107,7 +107,8 @@
       ],
       "kinds": {
         "-singles": "single"
-      }
+      },
+      "delay": 3
     },
     {
       "name": "Ram Cards",
@@ -131,7 +132,8 @@
       "kinds": {
         "raw-cards": "single",
         "graded-cards": "graded"
-      }
+      },
+      "delay": 3
     },
     {
       "name": "CardX TCG",
@@ -145,7 +147,8 @@
         "https://www.cardxtcg.ro/league-of-legends-riftbound?o=news&p={n}"
       ],
       "paged_from": 1,
-      "note": "Pages count from 0 here: the second page is p=1."
+      "note": "Pages count from 0 here: the second page is p=1.",
+      "delay": 3
     },
     {
       "name": "The Guild Hall",
@@ -211,7 +214,7 @@
         "https://pokemania.ro/booster-blisters",
         "https://pokemania.ro/pokemon?sort_by=newest"
       ],
-      "delay": 5,
+      "delay": 6,
       "rotate_urls": [
         "https://pokemania.ro/binder-collections",
         "https://pokemania.ro/booster-packs",
@@ -238,8 +241,8 @@
         "https://pokemania.ro/v-union-boxes",
         "https://pokemania.ro/world-championship-decks"
       ],
-      "rotate_per_run": 5,
-      "note": "Blocks too many requests in a row: 4 main pages every run, the other 24 categories 5 at a time (about every 25 minutes). New singles and graded cards come from the newest page."
+      "rotate_per_run": 3,
+      "note": "Same platform as TCGMania, and it refuses too many requests: 4 main pages every run, the other 24 categories 3 at a time, so about every 40 minutes."
     },
     {
       "name": "TCGMania",
@@ -280,9 +283,9 @@
         "https://tcgmania.ro/expansiuni-pokemon-tcg",
         "https://tcgmania.ro/riftbound-tcg-cards"
       ],
-      "rotate_per_run": 5,
-      "delay": 5,
-      "note": "Same shop platform as PokeMANIA, so the same careful pace: 5 main pages every run, the other categories 5 at a time, each about every 30 minutes."
+      "rotate_per_run": 3,
+      "delay": 6,
+      "note": "Same platform as PokeMANIA, so the same careful pace: 5 main pages every run, the other 27 categories 3 at a time, so about every 45 minutes."
     },
     {
       "name": "Fyft",
