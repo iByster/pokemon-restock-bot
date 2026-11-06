@@ -45,13 +45,15 @@ TCG_SEALED = re.compile(r"booster|elite trainer|\betb\b|blister|\bdecks?\b|\btin
                         r"super[- ]premium|premium collection|starter|\bpack\b|\bpachet|\btcg\b|"
                         r"trading card game|build (?:and|&) battle|\bchest\b|trainer kit|pre-?rift|"
                         r"pre-?release|event kit|showdown|poster collection|figure (?:collection|box)|"
-                        r"c[aă]r[tț]i de joc|cartona[sș]e|colec[tț]i[ae] de postere", re.I)
+                        r"c[aă]r[tț]i de joc|cartona[sș]e|colec[tț]i[ae] de postere|holiday calendar|"
+                        r"toolkit|\bvault\b|proving grounds", re.I)
 MERCH = re.compile(r"rucsac|ghiozdan|backpack|\bgeant|\bbag\b|\bpenar|portofel|wallet|\bplu[sș]\b|plush|"
                    r"jucari|figurin|\bfigure|statuet|tricou|t-shirt|hanorac|hoodie|[sș]apc[aă]|\bcan[aă]\b|"
                    r"\bcani\b|\bmug\b|sticl[aă]|bottle|puzzle|lego|construx|stavebnice|\blamp|\bceas|"
                    r"\bpern[aă]|pillow|costum|pijama|[sș]osete|caiet|agend[aă]|breloc|keychain|poster|"
                    r"diecast|\bmagnet\b|benzi desenate|manga|\bcarte\b|jocuri? de societate|board game|funko|"
-                   r"\bcap\b|de construit|\bpiese\b", re.I)
+                   r"\bcap\b|de construit|\bpiese\b|joc interactiv|guess who|labyrinth|\bbol\b|ceramic|"
+                   r"p[aă]tur[aă]|creioane|c[aă]ciul|cizme|bluz[aă]|e[sș]arf|pantaloni|cool club", re.I)
 WEAK_SEALED = re.compile(r"collection|colec[tț]i[ae]|bundle|display|premium|\bbox\b|cutie|\bset\b|tcg", re.I)
 SET_CODE = re.compile(r"\b[A-Z][A-Z0-9]{1,4} \d{2,3}\b")    # "EVS 111", "S12A 234"
 SINGLE = re.compile(r"#\s?\d{1,3}\b|\b\d{1,3}/\d{2,3}\b|\([a-z0-9-]{2,8} \d{1,3}\)|"
@@ -186,6 +188,8 @@ def classify(title, url="", hint=None):
     if MERCH.search(title):
         return "merch"
     if SINGLE.search(title) or SET_CODE.search(title):
+        return "single"
+    if re.search(r"\bpromo card\b|\bcard$", title, re.I):
         return "single"
     return "sealed" if WEAK_SEALED.search(title) else "unsure"
 
@@ -373,6 +377,9 @@ SKU_PREFIX = re.compile(r"^[0-9a-f]{10,}\s+")
 
 
 def title_of(a, card):
+    name = card.select_one("a.name")           # Fyft: image names are camera file names
+    if name and len(clean(name.get_text(" "))) > 5:
+        return clean(name.get_text(" "))
     img = a.find("img")
     for cand in (a.get("title"), img.get("alt") if img else None):
         cand = SKU_PREFIX.sub("", clean(cand))
@@ -618,6 +625,10 @@ def check_shop(shop):
     if merch:
         print(f"    [merch left out] {shop['name']}: " + " ; ".join(t[:48] for t in merch[:40]))
     items = {k: v for k, v in items.items() if v["kind"] != "merch"}
+    weak = [v["title"] for v in items.values() if v["kind"] == "sealed" and not v.get("hint")
+            and not TCG_SEALED.search(v["title"])]
+    if weak:
+        print(f"    [sealed, by name only] {shop['name']}: " + " ; ".join(t[:48] for t in weak[:40]))
     unsure = [v["title"] for v in items.values() if v["kind"] == "unsure"]
     if unsure:
         print(f"    [unsure] {shop['name']}: " + " ; ".join(t[:48] for t in unsure[:40]))
