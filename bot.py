@@ -449,7 +449,7 @@ def read_html(session, shop, urls=None):
 
 def read_inertia(session, shop):
     """Shops that embed their whole product list as JSON in the page (Secret Cards).
-    It has exact stock and the Romanian price even when the page shows euros abroad."""
+    It has exact stock; prices come in the currency the site picks for the visitor's country."""
     base = shop["base"].rstrip("/")
     items, errors = {}, []
     for src in shop["urls"]:
@@ -459,12 +459,11 @@ def read_inertia(session, shop):
             try:
                 soup = BeautifulSoup(get(session, url), "html.parser")
                 tag = soup.find("script", attrs={"data-page": True})
-                products = json.loads(tag.get_text())["props"]["products"]
+                props = json.loads(tag.get_text())["props"]
+                products = props["products"]
+                currency = props.get("currency") or {}
+                cur = None if currency.get("code", "RON") == "RON" else currency.get("symbol")
                 last = min(int(products.get("last_page") or 1), MAX_EXTRA_PAGES)
-                if page == 1 and products.get("data"):
-                    print(f"    [debug] {shop['name']}: site currency "
-                          f"{json.loads(tag.get_text())['props'].get('currency')}, first price "
-                          f"{products['data'][0].get('current_price')}")
             except (requests.RequestException, ValueError, KeyError, TypeError, AttributeError) as e:
                 errors.append(f"{url}: {e}")
                 break
@@ -475,6 +474,7 @@ def read_inertia(session, shop):
                     "url": link,
                     "price": p.get("current_price"),
                     "old": p.get("base_price") if p.get("has_discount") else None,
+                    "cur": cur,
                     "available": bool(p.get("is_in_stock")),
                     "preorder": bool(p.get("is_preorder")),
                 }
