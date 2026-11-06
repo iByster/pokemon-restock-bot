@@ -45,14 +45,14 @@ TCG_SEALED = re.compile(r"booster|elite trainer|\betb\b|blister|\bdecks?\b|\btin
                         r"super[- ]premium|premium collection|starter|\bpack\b|\bpachet|\btcg\b|"
                         r"trading card game|build (?:and|&) battle|\bchest\b|trainer kit|pre-?rift|"
                         r"pre-?release|event kit|showdown|poster collection|figure (?:collection|box)|"
-                        r"c[aă]r[tț]i de joc|cartona[sș]e", re.I)
+                        r"c[aă]r[tț]i de joc|cartona[sș]e|colec[tț]i[ae] de postere", re.I)
 MERCH = re.compile(r"rucsac|ghiozdan|backpack|\bgeant|\bbag\b|\bpenar|portofel|wallet|\bplu[sș]\b|plush|"
                    r"jucari|figurin|\bfigure|statuet|tricou|t-shirt|hanorac|hoodie|[sș]apc[aă]|\bcan[aă]\b|"
                    r"\bcani\b|\bmug\b|sticl[aă]|bottle|puzzle|lego|construx|stavebnice|\blamp|\bceas|"
                    r"\bpern[aă]|pillow|costum|pijama|[sș]osete|caiet|agend[aă]|breloc|keychain|poster|"
                    r"diecast|\bmagnet\b|benzi desenate|manga|\bcarte\b|jocuri? de societate|board game|funko|"
                    r"\bcap\b|de construit|\bpiese\b", re.I)
-WEAK_SEALED = re.compile(r"collection|colec[tț]ie|bundle|display|premium|\bbox\b|cutie|\bset\b|tcg", re.I)
+WEAK_SEALED = re.compile(r"collection|colec[tț]i[ae]|bundle|display|premium|\bbox\b|cutie|\bset\b|tcg", re.I)
 SET_CODE = re.compile(r"\b[A-Z][A-Z0-9]{1,4} \d{2,3}\b")    # "EVS 111", "S12A 234"
 SINGLE = re.compile(r"#\s?\d{1,3}\b|\b\d{1,3}/\d{2,3}\b|\([a-z0-9-]{2,8} \d{1,3}\)|"
                     r"[-|] ?(?:nm|lp|mp|hp)\b|\b(?:holo|reverse|illustration rare|full art)\b", re.I)
@@ -369,11 +369,15 @@ def card_of(a, page_url, pattern=None):
     return card
 
 
+SKU_PREFIX = re.compile(r"^[0-9a-f]{10,}\s+")
+
+
 def title_of(a, card):
     img = a.find("img")
     for cand in (a.get("title"), img.get("alt") if img else None):
-        if cand and len(clean(cand)) > 5:
-            return clean(cand)
+        cand = SKU_PREFIX.sub("", clean(cand))
+        if len(cand) > 5 and " " in cand:      # "boosterbox" is a file name, not a title
+            return cand
     for h in card.find_all(["h2", "h3", "h4", "h5"]):
         t = clean(h.get_text(" "))
         if len(t) > 5:
