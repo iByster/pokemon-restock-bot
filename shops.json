@@ -98,7 +98,9 @@
       "paged_urls": [
         "https://www.lexshop.ro/pokemon-tcg?o=news&p={n}",
         "https://www.lexshop.ro/riftbound-league-of-legends-tcg?o=news&p={n}"
-      ]
+      ],
+      "paged_from": 1,
+      "note": "Pages count from 0 here: the second page is p=1."
     },
     {
       "name": "Ram Cards",
@@ -110,7 +112,9 @@
       "paged_urls": [
         "https://www.ramcards.ro/pokemon-tcg?o=news&p={n}",
         "https://www.ramcards.ro/riftbound-tcg?o=news&p={n}"
-      ]
+      ],
+      "paged_from": 1,
+      "note": "Pages count from 0 here: the second page is p=1."
     },
     {
       "name": "CardX TCG",
@@ -122,7 +126,9 @@
       "paged_urls": [
         "https://www.cardxtcg.ro/produse?c=pokemon&o=news&p={n}",
         "https://www.cardxtcg.ro/league-of-legends-riftbound?o=news&p={n}"
-      ]
+      ],
+      "paged_from": 1,
+      "note": "Pages count from 0 here: the second page is p=1."
     },
     {
       "name": "The Guild Hall",
@@ -158,18 +164,13 @@
     },
     {
       "name": "Secret Cards",
-      "type": "html",
+      "type": "inertia",
       "urls": [
-        "https://secretcards.ro/categories/sealed-products",
-        "https://secretcards.ro/categories/booster-boxes",
-        "https://secretcards.ro/categories/collection-boxes"
+        "https://secretcards.ro/categories/sealed-products"
       ],
       "exclude": "lorcana|disney|one piece|yu-?gi-?oh|magic the gathering|\\bmtg\\b",
-      "may_be_empty": "all",
-      "reappear_is_restock": true,
-      "paged_urls": [
-        "https://secretcards.ro/categories/sealed-products?page={n}"
-      ]
+      "base": "https://secretcards.ro",
+      "note": "Reads the JSON in the page: exact stock and lei prices. Sealed-products includes all the sealed sub-categories."
     },
     {
       "name": "PokeMANIA",
@@ -177,7 +178,8 @@
       "urls": [
         "https://pokemania.ro/elite-trainer-boxes",
         "https://pokemania.ro/booster-display-boxes",
-        "https://pokemania.ro/booster-blisters"
+        "https://pokemania.ro/booster-blisters",
+        "https://pokemania.ro/pokemon?sort_by=newest"
       ],
       "delay": 4,
       "rotate_urls": [
@@ -207,7 +209,8 @@
         "https://pokemania.ro/world-championship-decks"
       ],
       "rotate_per_run": 5,
-      "note": "429s above ~18 requests a run: 3 main pages every run, the other 24 categories 5 at a time, so each is read about every 25 minutes."
+      "note": "429s above ~18 requests a run: 3 main pages every run, the other 24 categories 5 at a time, so each is read about every 25 minutes.",
+      "exclude": "\\b(?:psa|cgc|bgs)\\b"
     },
     {
       "name": "Fyft",

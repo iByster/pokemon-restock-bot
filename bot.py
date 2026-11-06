@@ -54,6 +54,8 @@ RON_PRICE = re.compile(r"(\d[\d.,]*)\s*(?:lei|ron)\b|\b(?:lei|ron)\s*(\d[\d.,]*)
 
 EUR_PRICE = re.compile(r"(\d[\d.,]*)\s*(?:eur\b|€)|(?:\beur|€)\s*(\d[\d.,]*)", re.I)
 
+STORE_ONLY = re.compile(r"disponibil [iî]n loca[tț]ii", re.I)
+
 PRICE_DROP_MIN_PCT = 3     # smaller changes are usually rounding or currency updates
 PRICE_DROP_MIN_LEI = 2
 SUSPECT_DROP_PCT = 60      # a drop this big must show up in 2 runs (could be a misread page)
@@ -445,7 +447,44 @@ def read_html(session, shop, urls=None):
     return items, errors, len(urls)
 
 
-READERS = {"shopify": read_shopify, "woo": read_woo, "html": read_html}
+def read_inertia(session, shop):
+    """Shops that embed their whole product list as JSON in the page (Secret Cards).
+    It has exact stock and the Romanian price even when the page shows euros abroad."""
+    base = shop["base"].rstrip("/")
+    items, errors = {}, []
+    for src in shop["urls"]:
+        last, page, count = 1, 1, 0
+        while page <= last:
+            url = f"{src}?page={page}"
+            try:
+                soup = BeautifulSoup(get(session, url), "html.parser")
+                tag = soup.find("script", attrs={"data-page": True})
+                products = json.loads(tag.get_text())["props"]["products"]
+                last = min(int(products.get("last_page") or 1), MAX_EXTRA_PAGES)
+                if page == 1 and products.get("data"):
+                    print(f"    [debug] {shop['name']}: site currency "
+                          f"{json.loads(tag.get_text())['props'].get('currency')}, first price "
+                          f"{products['data'][0].get('current_price')}")
+            except (requests.RequestException, ValueError, KeyError, TypeError, AttributeError) as e:
+                errors.append(f"{url}: {e}")
+                break
+            for p in products.get("data", []):
+                link = f"{base}/products/{p['slug']}"
+                items[norm_url(link)] = {
+                    "title": clean(p.get("name")),
+                    "url": link,
+                    "price": p.get("current_price"),
+                    "old": p.get("base_price") if p.get("has_discount") else None,
+                    "available": bool(p.get("is_in_stock")),
+                    "preorder": bool(p.get("is_preorder")),
+                }
+                count += 1
+            page += 1
+        PAGE_STATS[(shop["name"], src)] = count if count or not errors else -1
+    return items, errors, len(shop["urls"])
+
+
+READERS = {"shopify": read_shopify, "woo": read_woo, "html": read_html, "inertia": read_inertia}
 
 
 def check_shop(shop):
@@ -520,7 +559,7 @@ def pct(old, new):
 def fmt_price(it):
     p, old = it.get("price"), it.get("old")
     if not p:
-        return " · price not shown"
+        return " · in stores only" if STORE_ONLY.search(it.get("card", "")) else " · price not shown"
     cur = it.get("cur")
     return f" · {lei(p, cur)}" + (f" (was {lei(old, cur)}, -{pct(old, p)}%)" if old else "")
 
@@ -548,6 +587,25 @@ def alerts_list_msg(shop, alerts):
         lines.append(line)
     if len(alerts) > len(lines):
         lines.append(f"…and {len(alerts) - len(lines)} more")
+    return "\n".join([head] + lines)
+
+
+def deals_msg(shop, deals):
+    """What one shop has on sale right now, biggest discounts first."""
+    deals = sorted(deals, key=lambda it: pct(it["old"], it["price"]), reverse=True)
+    head = f"<b>🏷 {len(deals)} on sale</b> · {html.escape(shop)}"
+    lines, room = [], 3700 - len(head)
+    for it in deals[:DROP_LIST_LINES]:
+        cur = it.get("cur")
+        line = (f"• -{pct(it['old'], it['price'])}% "
+                f"<a href=\"{html.escape(it['url'], quote=True)}\">{html.escape(it['title'][:60])}</a> "
+                f"{lei(it['price'], cur)} (was {lei(it['old'], cur)})")
+        room -= len(line) + 1
+        if room < 0:
+            break
+        lines.append(line)
+    if len(deals) > len(lines):
+        lines.append(f"…and {len(deals) - len(lines)} more")
     return "\n".join([head] + lines)
 
 
@@ -608,26 +666,30 @@ def health_text(state, shops, title):
     return "\n".join(lines)
 
 
-def poll_status_command(state):
-    """True if you sent /status to the bot since the last run."""
+def poll_commands(state):
+    """Which of /status and /deals you sent to the bot since the last run."""
     token = os.environ.get("TELEGRAM_TOKEN")
     chat = os.environ.get("TELEGRAM_CHAT_ID")
+    wanted = set()
     if not token or not chat:
-        return False
+        return wanted
     try:
         r = requests.get(f"https://api.telegram.org/bot{token}/getUpdates",
                          params={"offset": state.get("tg_offset", 0), "timeout": 0,
                                  "allowed_updates": json.dumps(["message"])},
                          timeout=15).json()
     except (requests.RequestException, ValueError):
-        return False
-    wanted = False
+        return wanted
     for u in r.get("result", []):
         state["tg_offset"] = u["update_id"] + 1
         m = u.get("message") or {}
-        text = (m.get("text") or "").strip().lower()
-        if str(m.get("chat", {}).get("id")) == str(chat) and text.lstrip("/").startswith("status"):
-            wanted = True
+        text = (m.get("text") or "").strip().lower().lstrip("/")
+        if str(m.get("chat", {}).get("id")) != str(chat):
+            continue
+        if text.startswith("status"):
+            wanted.add("status")
+        elif text.startswith(("deals", "promo", "oferte", "reduceri")):
+            wanted.add("deals")
     return wanted
 
 
@@ -825,8 +887,19 @@ def main():
     if local.hour >= DAILY_HOUR and state.get("daily") != today:
         messages.append(health_text(state, all_shops, f"📊 Daily health check · {local:%d %b}"))
         state["daily"] = today
-    if poll_status_command(state):
+    commands = poll_commands(state)
+    if "status" in commands:
         messages.append(health_text(state, all_shops, f"📋 Status · {local:%d %b %H:%M}"))
+    if "deals" in commands or not state.get("deals_intro"):
+        # sent once by itself, so promotions already running aren't missed; then on /deals
+        state["deals_intro"] = True
+        on_sale = [(shop["name"], [it for it in items.values() if it["old"] and it["available"]])
+                   for shop, items, _, _ in results]
+        on_sale = [(name, deals) for name, deals in on_sale if deals]
+        messages.append(f"🏷 <b>Running promotions</b> in {len(on_sale)} shops. "
+                        f"Send /deals any time for this list."
+                        if on_sale else "🏷 No promotions found right now.")
+        messages.extend(deals_msg(name, deals) for name, deals in on_sale)
 
     save_state(state)
 
