@@ -34,8 +34,25 @@ UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
 TIMEOUT = 25
 
 KEYWORD = re.compile(r"pok[eé]\u0301?mon|\bpkm\b|\bptcg\b|riftbound|league of legends", re.I)
-CARDS = re.compile(r"tcg|booster|elite trainer|\betb\b|c[aă]r[tț]i|carton[aș]|blister|\btin\b|"
-                   r"collection|colec[tț]ie|deck|bundle|display|premium|binder|sleeve", re.I)
+
+# What a product is. Order matters: see classify().
+GRADED = re.compile(r"\b(?:psa|cgc|bgs|sgc|ace|graad|tag|gg|beckett)\b[^|]{0,14}?\b\d{1,2}(?:\.5)?\b|"
+                    r"\bgraded\b[^|]{0,14}?\b\d{1,2}(?:\.5)?\b", re.I)
+ACCESSORY = re.compile(r"sleeve|top ?loader|binder|\balbum|portofoliu|portfolio|playmat|deck ?box|"
+                       r"card ?case|acrylic|acrilic|magnetic|protec[tț]i|one[- ]touch|card saver|"
+                       r"\bdice\b|\bzaruri\b|divider|pagini|buzunare|depozitare|storage|carcas", re.I)
+TCG_SEALED = re.compile(r"booster|elite trainer|\betb\b|blister|\bdeck\b|\btin\b|ultra[- ]premium|"
+                        r"super[- ]premium|premium collection|starter|\bpack\b|\bpachet", re.I)
+MERCH = re.compile(r"rucsac|ghiozdan|backpack|\bgeant|\bbag\b|\bpenar|portofel|wallet|\bplu[sș]\b|plush|"
+                   r"jucari|figurin|\bfigure|statuet|tricou|t-shirt|hanorac|hoodie|[sș]apc[aă]|\bcan[aă]\b|"
+                   r"\bcani\b|\bmug\b|sticl[aă]|bottle|puzzle|lego|construx|stavebnice|\blamp|\bceas|"
+                   r"\bpern[aă]|pillow|costum|pijama|[sș]osete|caiet|agend[aă]|breloc|keychain|poster|"
+                   r"diecast|\bmagnet\b|benzi desenate|manga|\bcarte\b|\bjoc\b|board game", re.I)
+WEAK_SEALED = re.compile(r"collection|colec[tț]ie|bundle|display|premium|\bbox\b|cutie|\bset\b|tcg", re.I)
+SINGLE = re.compile(r"#\s?\d{1,3}\b|\b\d{1,3}/\d{2,3}\b|\([a-z0-9-]{2,8} \d{1,3}\)|"
+                    r"[-|] ?(?:nm|lp|mp|hp)\b|\b(?:holo|reverse|illustration rare|full art)\b", re.I)
+KIND_LABEL = {"sealed": "📦 Sealed", "single": "🃏 Single", "graded": "💎 Graded",
+              "accessory": "🧰 Accessory", "unsure": "❔ Not sure what this is"}
 PRICE = re.compile(r"\d[\d.,]*\s*(?:lei|ron|eur|€)(?![a-z])|(?<![a-z])(?:lei|ron|eur|€)\s*\d", re.I)
 OOS = re.compile(r"stoc epuizat|epuizat|indisponibil|out of stock|sold out|"
                  r"nu (?:este|e) [iî]n stoc|vyprod[aá]no|stoc 0\b", re.I)
@@ -58,13 +75,17 @@ STORE_ONLY = re.compile(r"disponibil [iî]n loca[tț]ii", re.I)
 
 PRICE_DROP_MIN_PCT = 3     # smaller changes are usually rounding or currency updates
 PRICE_DROP_MIN_LEI = 2
+SINGLE_DROP_MIN_PCT = 10   # card prices move all the time, so singles need a bigger change
+SINGLE_DROP_MIN_LEI = 20
+SINGLE_MIN_PRICE = 50      # singles cheaper than this are tracked but never alerted
 SUSPECT_DROP_PCT = 60      # a drop this big must show up in 2 runs (could be a misread page)
 MAX_DROP_ALERTS = 5        # more drops than this from one shop arrive as one list
 DROP_LIST_LINES = 20
 PRICE_REPEAT_HOURS = 24    # a price bouncing up and down alerts once a day, not every bounce
 
-READER_VERSION = 3         # bump when the shop readers change: every shop re-learns silently once
-MAX_EXTRA_PAGES = 15       # safety limit for "paged_urls"
+READER_VERSION = 4         # bump when the shop readers change: every shop re-learns silently once
+MAX_EXTRA_PAGES = 30       # safety limit for "paged_urls"
+MAX_LIST_PAGES = 300       # safety limit for a shop's own page count
 INERTIA = {}               # site build ids, kept in the saved state
 PAGE_STATS = {}            # (shop name, page) -> items found, or -1 on error
 PAGES_BAD_BEFORE_WARNING = 12   # ~1 hour of failed runs for one page
@@ -139,6 +160,34 @@ def prices_from_text(text, pattern=RON_PRICE):
         return None, None
     old = found[-1] if len(found) > 1 and found[0] >= found[-1] * 0.2 else None
     return found[0], old
+
+
+def classify(title, url="", hint=None):
+    """sealed / single / graded / accessory / merch (dropped) / unsure (reported, and marked).
+    "hint" is what the shop's page says it lists. Graded wins, since it's in the title."""
+    if GRADED.search(title):
+        return "graded"
+    if hint:
+        return hint
+    path = urlsplit(url).path.lower()
+    if "graded" in path:
+        return "graded"
+    if re.search(r"singles|raw-cards|carti-raw", path):
+        return "single"
+    if ACCESSORY.search(title):
+        return "accessory"
+    if TCG_SEALED.search(title):
+        return "sealed"
+    if MERCH.search(title):
+        return "merch"
+    if SINGLE.search(title):
+        return "single"
+    return "sealed" if WEAK_SEALED.search(title) else "unsure"
+
+
+def hint_for(shop, url):
+    """The product type a shop's page lists, from "kinds": {"part of the url": "single"}."""
+    return next((k for part, k in (shop.get("kinds") or {}).items() if part in url), None)
 
 
 def make_session():
@@ -397,6 +446,8 @@ def read_html_page(session, shop, url, track=True, template=None):
     fu = shop.get("filter_urls") or []
     if fu == "all" or url in fu or template in fu:
         found = {k: v for k, v in found.items() if KEYWORD.search(v["title"] + " " + k)}
+    for v in found.values():
+        v["src"], v["hint"] = template or url, hint_for(shop, url)
     if not found and track:
         title = soup.title.get_text(" ", strip=True)[:60] if soup.title else ""
         print(f"    [debug] {url}: 0 products, {len(page)} bytes, title={title!r}")
@@ -428,9 +479,9 @@ def read_html(session, shop, urls=None):
         items.update(res["found"])
     # Listings that span several pages: keep going until a page brings nothing new.
     # Sorting by newest only catches new products; restocked old ones stay on the last pages.
-    paged = [] if is_fallback else shop.get("paged_urls", [])
-    if shop.get("deep_hourly") and datetime.now().minute >= 5:
-        paged = []         # paid proxy traffic: read the deeper pages once an hour
+    paged = [] if is_fallback else list(shop.get("paged_urls", []))
+    if not is_fallback and datetime.now().minute < 5:
+        paged += shop.get("hourly_paged_urls", [])    # long lists: the first page every run
     for template in paged:
         first = int(shop.get("paged_from", 2))
         for n in range(first, first + MAX_EXTRA_PAGES):
@@ -472,41 +523,61 @@ def inertia_props(session, shop, url):
 
 def read_inertia(session, shop):
     """Shops that send their product list as JSON (Secret Cards): exact stock and sale prices.
-    The currency depends on the visitor's country, so "currency" rejects any other answer."""
+    The currency depends on the visitor's country, so "currency" rejects any other answer.
+    "rotate_src" is a very long list: its first page every run, and a few others in turn."""
     base = shop["base"].rstrip("/")
     items, errors = {}, []
+
+    def read_page(src, page):
+        """Returns the list's last page number, or None if this page failed."""
+        url = f"{src}?page={page}"
+        try:
+            props = inertia_props(session, shop, url)
+            products = props["products"]
+            currency = props.get("currency") or {}
+            last = min(int(products.get("last_page") or 1), MAX_LIST_PAGES)
+        except (requests.RequestException, ValueError, KeyError, TypeError, AttributeError) as e:
+            errors.append(f"{url}: {e}")
+            return None
+        code = currency.get("code", "RON")
+        if shop.get("currency") and code != shop["currency"]:
+            errors.append(f"{url}: got prices in {code}")
+            return None
+        cur = None if code == "RON" else currency.get("symbol")
+        for p in products.get("data", []):
+            link = f"{base}/products/{p['slug']}"
+            items[norm_url(link)] = {
+                "title": clean(p.get("name")),
+                "url": link,
+                "price": p.get("current_price"),
+                "old": p.get("base_price") if p.get("has_discount") else None,
+                "cur": cur,
+                "available": bool(p.get("is_in_stock")),
+                "preorder": bool(p.get("is_preorder")),
+                "src": url,
+                "hint": hint_for(shop, src),
+            }
+        return last
+
     for src in shop["urls"]:
-        last, page, count = 1, 1, 0
+        before, page, last = len(items), 1, 1
         while page <= last:
-            url = f"{src}?page={page}"
-            try:
-                props = inertia_props(session, shop, url)
-                products = props["products"]
-                currency = props.get("currency") or {}
-                last = min(int(products.get("last_page") or 1), MAX_EXTRA_PAGES)
-            except (requests.RequestException, ValueError, KeyError, TypeError, AttributeError) as e:
-                errors.append(f"{url}: {e}")
+            result = read_page(src, page)
+            if result is None:
                 break
-            code = currency.get("code", "RON")
-            if shop.get("currency") and code != shop["currency"]:
-                errors.append(f"{url}: got prices in {code}")
-                break
-            cur = None if code == "RON" else currency.get("symbol")
-            for p in products.get("data", []):
-                link = f"{base}/products/{p['slug']}"
-                items[norm_url(link)] = {
-                    "title": clean(p.get("name")),
-                    "url": link,
-                    "price": p.get("current_price"),
-                    "old": p.get("base_price") if p.get("has_discount") else None,
-                    "cur": cur,
-                    "available": bool(p.get("is_in_stock")),
-                    "preorder": bool(p.get("is_preorder")),
-                }
-                count += 1
-            page += 1
-        PAGE_STATS[(shop["name"], src)] = count if count or not errors else -1
-    return items, errors, len(shop["urls"])
+            last, page = result, page + 1
+        PAGE_STATS[(shop["name"], src)] = len(items) - before if len(items) > before or not errors else -1
+    src = shop.get("rotate_src")
+    if src:
+        before = len(items)
+        last = read_page(src, 1)
+        if last and last > 1:
+            size = int(shop.get("rotate_pages", 4))
+            start = int(time.time() // 300) * size % (last - 1)
+            for n in range(size):
+                read_page(src, 2 + (start + n) % (last - 1))
+        PAGE_STATS[(shop["name"], src)] = len(items) - before if last else -1
+    return items, errors, len(shop["urls"]) + bool(src)
 
 
 READERS = {"shopify": read_shopify, "woo": read_woo, "html": read_html, "inertia": read_inertia}
@@ -532,8 +603,15 @@ def check_shop(shop):
     if shop.get("exclude"):
         ex = re.compile(shop["exclude"], re.I)
         items = {k: v for k, v in items.items() if not ex.search(v["title"] + " " + k)}
-    if shop.get("cards_only"):
-        items = {k: v for k, v in items.items() if CARDS.search(v["title"])}
+    for v in items.values():
+        v["kind"] = classify(v["title"], v["url"], v.get("hint"))
+    merch = [v["title"] for v in items.values() if v["kind"] == "merch"]
+    if merch:
+        print(f"    [merch left out] {shop['name']}: " + " ; ".join(t[:48] for t in merch[:40]))
+    items = {k: v for k, v in items.items() if v["kind"] != "merch"}
+    unsure = [v["title"] for v in items.values() if v["kind"] == "unsure"]
+    if unsure:
+        print(f"    [unsure] {shop['name']}: " + " ; ".join(t[:48] for t in unsure[:40]))
     for v in items.values():
         v["price"] = to_price(v.get("price"))
         v["old"] = to_price(v.get("old"))
@@ -594,6 +672,7 @@ def item_msg(kind, shop, it):
              "instock": "📦 NOW IN STOCK (was pre-order)"}[kind]
     pre = " (pre-order)" if it.get("preorder") else ""
     return (f"<b>{label}{pre}</b> · {html.escape(shop)}\n"
+            f"{KIND_LABEL.get(it.get('kind'), '')}\n"
             f"{html.escape(it['title'])}{html.escape(fmt_price(it))}\n"
             f"{html.escape(it['url'])}")
 
@@ -604,7 +683,8 @@ def alerts_list_msg(shop, alerts):
             f"(big drop, or the shop changed its site)")
     lines, room = [], 3700 - len(head)
     for _, it in alerts:
-        line = (f"• <a href=\"{html.escape(it['url'], quote=True)}\">{html.escape(it['title'][:60])}</a>"
+        line = (f"• {KIND_LABEL.get(it.get('kind'), '')[:1]} "
+                f"<a href=\"{html.escape(it['url'], quote=True)}\">{html.escape(it['title'][:60])}</a>"
                 f"{html.escape(fmt_price(it))}")
         room -= len(line) + 1
         if room < 0:
@@ -622,7 +702,7 @@ def deals_msg(shop, deals):
     lines, room = [], 3700 - len(head)
     for it in deals[:DROP_LIST_LINES]:
         cur = it.get("cur")
-        line = (f"• -{pct(it['old'], it['price'])}% "
+        line = (f"• {KIND_LABEL.get(it.get('kind'), '')[:1]} -{pct(it['old'], it['price'])}% "
                 f"<a href=\"{html.escape(it['url'], quote=True)}\">{html.escape(it['title'][:60])}</a> "
                 f"{lei(it['price'], cur)} (was {lei(it['old'], cur)})")
         room -= len(line) + 1
@@ -636,6 +716,7 @@ def deals_msg(shop, deals):
 
 def drop_msg(shop, it, before):
     return (f"<b>💸 PRICE DROP -{pct(before, it['price'])}%</b> · {html.escape(shop)}\n"
+            f"{KIND_LABEL.get(it.get('kind'), '')}\n"
             f"{html.escape(it['title'])}\n"
             f"{lei(before, it.get('cur'))} → <b>{lei(it['price'], it.get('cur'))}</b>\n"
             f"{html.escape(it['url'])}")
@@ -647,7 +728,7 @@ def drops_list_msg(shop, drops):
     head = f"<b>💸 {len(drops)} PRICE DROPS</b> · {html.escape(shop)}"
     lines, room = [], 3700 - len(head)
     for it, before in drops[:DROP_LIST_LINES]:
-        line = (f"• -{pct(before, it['price'])}% "
+        line = (f"• {KIND_LABEL.get(it.get('kind'), '')[:1]} -{pct(before, it['price'])}% "
                 f"<a href=\"{html.escape(it['url'], quote=True)}\">{html.escape(it['title'][:60])}</a> "
                 f"{lei(before, it.get('cur'))} → {lei(it['price'], it.get('cur'))}")
         room -= len(line) + 1
@@ -736,12 +817,18 @@ def save_state(state):
     os.replace(tmp, STATE_FILE)
 
 
-def check_drop(price, before, prev, rec, now):
+def worth_alerting(it):
+    return it.get("kind") != "single" or not it.get("price") or it["price"] >= SINGLE_MIN_PRICE
+
+
+def check_drop(price, before, prev, rec, now, kind=None):
     """Decide on a lower price and update the saved record. Returns "alert" or None."""
     drop = before - price
     rec["pr"] = price
     rec.pop("pend", None)
-    if drop < PRICE_DROP_MIN_LEI or drop / before * 100 < PRICE_DROP_MIN_PCT:
+    card = kind in ("single", "graded")
+    if (drop < (SINGLE_DROP_MIN_LEI if card else PRICE_DROP_MIN_LEI)
+            or drop / before * 100 < (SINGLE_DROP_MIN_PCT if card else PRICE_DROP_MIN_PCT)):
         return None
     if drop / before * 100 >= SUSPECT_DROP_PCT and prev.get("pend") != price:
         rec["pr"], rec["pend"] = before, price     # wait for the next run to confirm it
@@ -787,6 +874,10 @@ def main():
             n_av = sum(1 for i in items.values() if i["available"])
             n_pr = sum(1 for i in items.values() if i["price"])
             line += f" ({n_av} in stock, {n_pr} priced)"
+            kinds = {}
+            for i in items.values():
+                kinds[i["kind"]] = kinds.get(i["kind"], 0) + 1
+            line += " [" + " ".join(f"{k}:{n}" for k, n in sorted(kinds.items())) + "]"
             line += f" e.g. {next(iter(items.values()))['title'][:50]}"
         if errors:
             line += f" | errors: {len(errors)}/{n_sources}"
@@ -826,16 +917,20 @@ def main():
             for key, it in items.items():
                 known[key] = {"t": it["title"][:120], "a": it["available"], "m": 0,
                               "p": bool(it.get("preorder")), "pr": it["price"]}
+            st["pages_seen"] = sorted({it["src"] for it in items.values() if it.get("src")})
             st["init"] = True
             continue
 
         reappear = shop.get("reappear_is_restock", shop["type"] == "woo")
         alerts, drops = [], []
+        pages_seen = set(st.get("pages_seen", []))
         for key, it in items.items():
             prev = known.get(key)
             n_before = len(alerts)
             if prev is None:
-                if it["available"] is not False:
+                # a page read for the first time isn't news: learn it, don't announce it
+                first_look = it.get("src") and it["src"] not in pages_seen
+                if it["available"] is not False and not first_look:
                     alerts.append(("new", it))
             elif prev.get("a") is False and it["available"] is True:
                 alerts.append(("restock", it))
@@ -854,10 +949,13 @@ def main():
                         or it["available"] is False):
                     rec["pr"] = it["price"]    # first price seen, a rise, or it's alerting anyway
                 else:
-                    kind = check_drop(it["price"], before, prev, rec, now)
-                    if kind == "alert":
+                    if check_drop(it["price"], before, prev, rec, now, it.get("kind")) == "alert":
                         drops.append((it, before))
             known[key] = rec
+
+        st["pages_seen"] = sorted(pages_seen | {it["src"] for it in items.values() if it.get("src")})
+        alerts = [a for a in alerts if worth_alerting(a[1])]
+        drops = [d for d in drops if worth_alerting(d[0])]
 
         if complete:
             for key, rec in known.items():
@@ -920,7 +1018,8 @@ def main():
     if "deals" in commands or not state.get("deals_intro"):
         # sent once by itself, so promotions already running aren't missed; then on /deals
         state["deals_intro"] = True
-        on_sale = [(shop["name"], [it for it in items.values() if it["old"] and it["available"]])
+        on_sale = [(shop["name"], [it for it in items.values()
+                                   if it["old"] and it["available"] and worth_alerting(it)])
                    for shop, items, _, _ in results]
         on_sale = [(name, deals) for name, deals in on_sale if deals]
         messages.append(f"🏷 <b>Running promotions</b> in {len(on_sale)} shops. "
