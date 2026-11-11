@@ -78,6 +78,8 @@ PRICE_NOISE = re.compile(
     rf"|(?<!\S)[-−–]{RON_AMOUNT}", re.I)                              # "-20 lei"
 RON_PRICE = re.compile(r"(\d[\d.,]*)\s*(?:lei|ron)\b|\b(?:lei|ron)\s*(\d[\d.,]*)", re.I)
 
+# "1 028 Lei" (Fyft): a space as the thousands separator, only right before the currency
+SPACED_THOUSANDS = re.compile(r"(?<![\d.,])(\d{1,3})[ \u00a0\u202f](\d{3}(?:[.,]\d{1,2})?\s*(?:lei|ron|eur\b|€))", re.I)
 EUR_PRICE = re.compile(r"(\d[\d.,]*)\s*(?:eur\b|€)|(?:\beur|€)\s*(\d[\d.,]*)", re.I)
 
 STORE_ONLY = re.compile(r"disponibil [iî]n loca[tț]ii", re.I)
@@ -91,6 +93,7 @@ SUSPECT_DROP_PCT = 60      # a drop this big must show up in 2 runs (could be a 
 MAX_DROP_ALERTS = 5        # more drops than this from one shop arrive as one list
 DROP_LIST_LINES = 20
 PRICE_REPEAT_HOURS = 24    # a price bouncing up and down alerts once a day, not every bounce
+RESTOCK_REPEAT_HOURS = 12  # same product back in stock again: alert at most once per 12 hours
 
 READER_VERSION = 4         # bump when the shop readers change: every shop re-learns silently once
 MIN_PAGE_DELAY = 1.5       # seconds between pages of one shop, on top of its own "delay"
@@ -163,7 +166,8 @@ def to_price(value):
 def prices_from_text(text, pattern=RON_PRICE):
     """(current price, crossed-out price) from a product card's visible text.
     Shops print the two in either order, so the lower one is what you pay."""
-    found = [to_price(a or b) for a, b in pattern.findall(PRICE_NOISE.sub(" ", text))]
+    text = SPACED_THOUSANDS.sub(r"\1\2", PRICE_NOISE.sub(" ", text))
+    found = [to_price(a or b) for a, b in pattern.findall(text)]
     found = sorted({p for p in found if p})
     if not found:
         return None, None
@@ -958,16 +962,20 @@ def main():
                 if it["available"] is not False and not first_look:
                     alerts.append(("new", it))
             elif prev.get("a") is False and it["available"] is True:
-                alerts.append(("restock", it))
+                if now - prev.get("rs_t", 0) >= RESTOCK_REPEAT_HOURS * 3600:
+                    alerts.append(("restock", it))
             elif reappear and prev.get("m", 0) >= MISSES_FOR_GONE and it["available"] is not False:
-                alerts.append(("restock", it))
+                if now - prev.get("rs_t", 0) >= RESTOCK_REPEAT_HOURS * 3600:
+                    alerts.append(("restock", it))
             elif prev.get("p") and not it.get("preorder") and it["available"] is True:
                 alerts.append(("instock", it))   # pre-order is now shipping / in stock
             rec = {"t": it["title"][:120], "a": it["available"], "m": 0,
                    "p": bool(it.get("preorder")), "pr": (prev or {}).get("pr")}
-            for k in ("drop_p", "drop_t"):
+            for k in ("drop_p", "drop_t", "rs_t"):
                 if prev and k in prev:
                     rec[k] = prev[k]
+            if len(alerts) > n_before and alerts[-1][0] == "restock":
+                rec["rs_t"] = now
             if it["price"]:
                 before = rec["pr"]
                 if (not before or it["price"] >= before or len(alerts) > n_before
