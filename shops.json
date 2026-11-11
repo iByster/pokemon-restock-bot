@@ -140,6 +140,7 @@
       "type": "html",
       "urls": [
         "https://www.cardxtcg.ro/produse?c=pokemon&o=news",
+        "https://www.cardxtcg.ro/produse-1?o=news",
         "https://www.cardxtcg.ro/league-of-legends-riftbound?o=news"
       ],
       "paged_urls": [
@@ -147,7 +148,7 @@
         "https://www.cardxtcg.ro/league-of-legends-riftbound?o=news&p={n}"
       ],
       "paged_from": 1,
-      "note": "Pages count from 0 here: the second page is p=1.",
+      "note": "Pages count from 0 here: the second page is p=1. The search (?c=pokemon) misses products whose title lacks the word Pokemon (e.g. 'Mega Forces Tin 26Q3'), so the English Pokemon category's newest page is read too.",
       "delay": 3
     },
     {
