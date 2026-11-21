@@ -923,7 +923,7 @@ def main():
         if usable and not n_pr:
             print(f"    [debug] no prices read, card text: {next(iter(items.values())).get('card', '')!r}")
         for e in errors:
-            print("   ", e[:200])
+            print("   ", e[:700])
 
         if not usable:
             st["fails"] += 1
