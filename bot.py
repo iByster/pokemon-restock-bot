@@ -232,7 +232,14 @@ def get(session, url, as_json=False):
     r = session.get(url, timeout=TIMEOUT,
                     headers={"Accept": "application/json"} if as_json else None)
     r.raise_for_status()
-    return r.json() if as_json else r.text
+    if not as_json:
+        return r.text
+    try:
+        return r.json()
+    except ValueError:
+        head = " ".join(r.text[:300].split())
+        raise ValueError(f"not JSON (HTTP {r.status_code}, {r.headers.get('content-type')}, "
+                         f"{len(r.text)} bytes, server={r.headers.get('server')}): {head}")
 
 
 # ---------------------------------------------------------------- readers
