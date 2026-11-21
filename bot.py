@@ -291,7 +291,8 @@ def read_woo(session, shop):
     per_page = int(shop.get("per_page", 100))
     for page in range(1, int(shop.get("max_pages", 2)) + 1):
         url = (f"{base}/wp-json/wc/store/v1/products?per_page={per_page}&page={page}"
-               f"&orderby=date&order=desc")
+               f"&orderby=date&order=desc"
+               f"&_fields=id,name,permalink,prices,is_in_stock,is_on_backorder,categories")
         try:
             data = get(session, url, as_json=True)
         except Exception as e:  # noqa: BLE001

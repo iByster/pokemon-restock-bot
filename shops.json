@@ -52,7 +52,9 @@
       "name": "LootShop",
       "type": "woo",
       "base": "https://lootshop.ro",
-      "max_pages": 6
+      "max_pages": 3,
+      "use_proxy": true,
+      "note": "Blocks cloud servers since Nov 2026, so it goes through the proxy. Slim feed (_fields) keeps proxy traffic tiny (~60 KB per 100 products instead of 1.5 MB)."
     },
     {
       "name": "Krit",
