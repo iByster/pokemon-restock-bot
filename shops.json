@@ -12,6 +12,25 @@
       "max_pages": 6
     },
     {
+      "name": "Poke Plaza",
+      "type": "shopify",
+      "base": "https://pokeplaza.ro",
+      "scan_all": true,
+      "max_pages": 2,
+      "note": "Small Shopify shop (~36 products, mostly Pokemon sealed + some Riftbound); whole catalogue each run, kept to Pokemon/Riftbound by keyword."
+    },
+    {
+      "name": "Orca TCG",
+      "type": "shopify",
+      "base": "https://orcatcg.ro",
+      "collections": [
+        "pokemon"
+      ],
+      "scan_all": true,
+      "max_pages": 2,
+      "note": "Shopify shop (~82 products incl. One Piece and board games); Pokemon collection + whole catalogue filtered by keyword."
+    },
+    {
       "name": "TCG Arena",
       "type": "shopify",
       "base": "https://tcgarena.ro",
