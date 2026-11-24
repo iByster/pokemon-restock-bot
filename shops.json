@@ -23,12 +23,9 @@
       "name": "Orca TCG",
       "type": "shopify",
       "base": "https://orcatcg.ro",
-      "collections": [
-        "pokemon"
-      ],
       "scan_all": true,
       "max_pages": 2,
-      "note": "Shopify shop (~82 products incl. One Piece and board games); Pokemon collection + whole catalogue filtered by keyword."
+      "note": "Shopify shop (~82 products incl. One Piece and board games); whole catalogue each run, kept to Pokemon/Riftbound by keyword."
     },
     {
       "name": "TCG Arena",
